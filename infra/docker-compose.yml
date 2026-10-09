@@ -23,7 +23,9 @@ services:
       context: ../backend
     image: itsm-backend:0.0.1-SNAPSHOT
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      # `dev` enables the temporary X-User-Id / X-User-Role header identity.
+      # Remove it when Keycloak lands (docs/adr/0003-temporary-dev-header-identity.md).
+      SPRING_PROFILES_ACTIVE: docker,dev
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-itsm}
       DB_USERNAME: ${POSTGRES_USER:-itsm}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-itsm}
