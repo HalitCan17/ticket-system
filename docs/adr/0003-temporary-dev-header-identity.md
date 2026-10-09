@@ -1,6 +1,6 @@
 # ADR 0003 — Keycloak'a kadar geçici header tabanlı kimlik (yalnızca `dev`)
 
-- **Durum:** Kabul edildi (geçici; Keycloak aşamasında yerine geçecek)
+- **Durum:** Yerini [ADR 0004](0004-keycloak-jwt-resource-server.md) aldı (Aşama 2). Header kimliği ve `dev` profili kaldırıldı.
 - **Tarih:** 2026-10-09
 - **Aşama:** 1
 

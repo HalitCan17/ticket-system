@@ -95,18 +95,18 @@ KIE 10.x'teki jBPM, eski 7.x'ten farklı olarak **Kogito mimarisiyle** çalış�
 
 ## Diğer bulgular / riskler (sonraki aşamaları etkiler)
 
-- 🔴 **Güvenlik — kimlik query parametresinden alınıyor.** Üretilen REST uçları
-  (`/usertasks/instance/...`, `/spikeApproval/...`) kullanıcıyı `?user=...&group=...`'tan alıyor
-  (`IdentityProviderFactory.getOrImpersonateIdentity`). Şu an herkes `group=AGENT` diyerek görev alabilir.
-  Keycloak aşamasında bu uçlar ya kapatılmalı/korunmalı ya da hiç dışarı açılmayıp süreçler kendi
-  servis katmanımızdan (Java API) sürülmeli. **Öneri:** ikincisi — UI kendi `/api/tickets` uçlarımızı
-  kullanır; Kogito'nun ürettiği REST resource'ları devre dışı bırakılır (`kogito.generate.rest=false`
-  benzeri ayar bir sonraki aşamada doğrulanacak).
+- ✅ ~~🔴 **Güvenlik — kimlik query parametresinden alınıyor.**~~ Üretilen REST uçları
+  (`/usertasks/instance/...`, `/spikeApproval/...`) kullanıcıyı `?user=...&group=...`'tan alıyordu
+  (`IdentityProviderFactory.getOrImpersonateIdentity`); herkes `group=AGENT` diyerek görev alabiliyordu.
+  **Aşama 2'de çözüldü:** `kogito.generate.rest=false` (`application.properties`; kogito-maven-plugin
+  `application.yml`'yi okumuyor) ile bu controller'lar artık üretilmiyor, ayrıca güvenlik zinciri `/api/**` dışındaki
+  her yolu reddediyor. Süreçler kendi servis katmanımızdan Java API ile sürülecek (bkz. ADR 0004).
+  Bu yüzden yukarıdaki "Konteynerde REST" doğrulaması artık tekrarlanamaz; spike testi Java API ile çalışmaya devam ediyor.
 - 🟡 **Global Jackson ayarı değişiyor.** Üretilen `GlobalObjectMapper`, Spring'in ObjectMapper'ına
   `WRITE_DATES_AS_TIMESTAMPS=false`, `FAIL_ON_EMPTY_BEANS=false` ve JVM saat dilimine göre tarih formatı uyguluyor.
   Standart response formatımız tasarlanırken bu dikkate alınmalı.
 - 🟡 **Starter ek bağımlılık çekiyor:** springdoc-openapi (Swagger UI `/swagger-ui/index.html` açık),
-  spring-security-core, resilience4j, kogito-rest-workitem. Swagger'ın prod'da kapatılması gerekecek.
+  spring-security-core, resilience4j, kogito-rest-workitem. (Aşama 2: Swagger UI güvenlik zincirinde `denyAll` ile kapalı.)
 - 🟡 **Kalıcılık yok (bu spike'ta).** Süreç durumu bellekte; uygulama yeniden başlarsa açık süreçler kaybolur.
   Postgres kalıcılığı için `org.kie:kie-addons-springboot-persistence-jdbc` /
   `kie-addons-springboot-persistence-postgresql` (10.2.0, Maven Central'da mevcut) denenmeli.

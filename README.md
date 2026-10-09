@@ -3,8 +3,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 1** — ticket çekirdeği (ticket, statü akışı, yorumlar) backend API'si.
-> Kimlik şimdilik geçici (yalnızca `dev` profili, bkz. [ADR 0003](docs/adr/0003-temporary-dev-header-identity.md)).
+> Durum: **Aşama 2** — ticket çekirdeği backend API'si + Keycloak ile kimlik doğrulama (JWT).
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -13,7 +12,7 @@ SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (A
 | İş akışı | Apache KIE 10.2.0 jBPM (gömülü) |
 | Veritabanı | PostgreSQL 18 |
 | Web / Mobil | React 19 + Vite / Expo (planlandı) |
-| Kimlik | Keycloak 26.8 (planlandı) |
+| Kimlik | Keycloak 26.8 (OIDC, JWT) |
 | Altyapı | Docker Compose |
 
 ## Hızlı başlangıç
@@ -23,6 +22,15 @@ Gereksinimler: Docker, (geliştirme için) Java 21.
 docker compose -f infra/docker-compose.yml up -d --build
 curl http://localhost:8080/actuator/health
 ```
+
+| Servis | Adres |
+|---|---|
+| Backend API | http://localhost:8080 |
+| Keycloak (admin: `admin` / `admin`) | http://localhost:8081 |
+| PostgreSQL (`itsm` / `itsm`) | localhost:5432 |
+
+> Keycloak veritabanı Postgres volume'u **ilk oluşturulurken** hazırlanır. Aşama 2'den önce oluşturulmuş bir
+> volume'unuz varsa bir kez `docker compose -f infra/docker-compose.yml down -v` çalıştırın (yerel veriyi siler).
 
 Testler:
 
@@ -48,8 +56,25 @@ NEW ──► IN_PROGRESS ◄──► WAITING_FOR_CUSTOMER
 
 Müşteri yalnızca kendi ticket'larını görür (başkasınınki için 404). `INTERNAL` yorumlar yalnızca AGENT/MANAGER'a görünür.
 
+## Kimlik doğrulama
+`/api/**` uçları Keycloak'ın `itsm` realm'inden alınmış bir access token ister (`Authorization: Bearer ...`).
+Ayrıntılar: [ADR 0004](docs/adr/0004-keycloak-jwt-resource-server.md).
+
+Yerel geliştirme kullanıcıları (şifre = kullanıcı adı, **yalnızca yerel geliştirme için**):
+
+| Kullanıcı | Rol |
+|---|---|
+| `customer1`, `customer2` | CUSTOMER |
+| `agent1` | AGENT |
+| `manager1` | MANAGER |
+
+Token almak (yerel `itsm-cli` client'ı, password grant):
+
+```bash
+curl -s -d client_id=itsm-cli -d grant_type=password -d username=customer1 -d password=customer1 http://localhost:8081/realms/itsm/protocol/openid-connect/token
+```
+
 ## API
-Tüm uçlar `dev` profilinde `X-User-Id` ve `X-User-Role` (`CUSTOMER` / `AGENT` / `MANAGER`) header'ları ister.
 
 | Metot | Yol | Açıklama |
 |---|---|---|
@@ -69,10 +94,10 @@ Hatalar [RFC 9457 ProblemDetail](https://www.rfc-editor.org/rfc/rfc9457) olarak 
  "instance":"/api/tickets/2/transitions","code":"RESOLUTION_NOTE_REQUIRED"}
 ```
 
-Örnek:
+Örnek (`TOKEN` yukarıdaki cevaptaki `access_token`):
 
 ```bash
-curl -X POST localhost:8080/api/tickets -H "X-User-Id: ayse" -H "X-User-Role: CUSTOMER" -H "Content-Type: application/json" -d '{"title":"VPN down","description":"Cannot connect","priority":"HIGH"}'
+curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"title":"VPN down","description":"Cannot connect","priority":"HIGH"}'
 ```
 
 > Windows'ta Git Bash/PowerShell'den Türkçe karakterli body gönderirken komut satırı UTF-8 olmayabilir;
@@ -81,5 +106,6 @@ curl -X POST localhost:8080/api/tickets -H "X-User-Id: ayse" -H "X-User-Role: CU
 ## Dokümanlar
 - [ADR 0001 — Spring Boot 3.5](docs/adr/0001-spring-boot-3.5.md)
 - [ADR 0002 — Statü akışı servis katmanında](docs/adr/0002-ticket-status-flow-in-service-layer.md)
-- [ADR 0003 — Geçici dev header kimliği](docs/adr/0003-temporary-dev-header-identity.md)
+- [ADR 0003 — Geçici dev header kimliği](docs/adr/0003-temporary-dev-header-identity.md) (yerini 0004 aldı)
+- [ADR 0004 — Keycloak ile JWT resource server](docs/adr/0004-keycloak-jwt-resource-server.md)
 - [jBPM spike raporu](docs/jbpm-spike.md)
