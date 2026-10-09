@@ -132,4 +132,5 @@ RESOLVED → CLOSED, itirazla geri dönüş, SLA duraklatma, N gün sonra otomat
 1. jBPM kalıcılığını Postgres'e bağlamak (`kie-addons-springboot-persistence-jdbc`) ve yeniden başlatma testi.
 2. Üretilen REST uçlarını kapatmak, süreci kendi servisimizden sürmek.
 3. Timer (otomatik CLOSED) için Jobs Service gereksinimini spike etmek.
-4. Spike BPMN'i ve testi, gerçek ticket süreci gelince kaldırmak/yerine koymak.
+4. Spike BPMN'i ve testi, jBPM'in gerçek bir kullanımı (ör. otomatik kapanış) gelince kaldırmak/yerine koymak.
+   Not (Aşama 1): ticket statü akışı jBPM'e değil servis katmanına konuldu → `docs/adr/0002-ticket-status-flow-in-service-layer.md`.
