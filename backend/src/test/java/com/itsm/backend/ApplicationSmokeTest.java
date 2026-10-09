@@ -7,6 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -27,6 +30,20 @@ class ApplicationSmokeTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("\"status\":\"UP\"");
+    }
+
+    @Test
+    void ticketApiRejectsRequestsOutsideDevProfile() {
+        // Even with the dev headers, no identity is accepted without the `dev` profile.
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-User-Id", "agent1");
+        headers.set("X-User-Role", "AGENT");
+
+        ResponseEntity<String> response = rest.exchange(
+                "/api/tickets", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getBody()).contains("\"code\":\"UNAUTHENTICATED\"");
     }
 
     @Test
