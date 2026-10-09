@@ -1,0 +1,120 @@
+{
+  "realm": "itsm",
+  "displayName": "ITSM Ticket System",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "sslRequired": "external",
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "CUSTOMER", "description": "Opens tickets and sees only their own tickets" },
+      { "name": "AGENT", "description": "Works on tickets" },
+      { "name": "MANAGER", "description": "Oversees tickets and agents" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "itsm-web",
+      "name": "ITSM web app",
+      "description": "React SPA: Authorization Code + PKCE",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "itsm-backend-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "itsm-backend",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "itsm-cli",
+      "name": "ITSM CLI (local development only)",
+      "description": "Password grant for curl and automated tests. Never enable outside local development.",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "itsm-backend-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "itsm-backend",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "customer1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Customer",
+      "lastName": "One",
+      "email": "customer1@itsm.local",
+      "credentials": [{ "type": "password", "value": "customer1", "temporary": false }],
+      "realmRoles": ["CUSTOMER"]
+    },
+    {
+      "username": "customer2",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Customer",
+      "lastName": "Two",
+      "email": "customer2@itsm.local",
+      "credentials": [{ "type": "password", "value": "customer2", "temporary": false }],
+      "realmRoles": ["CUSTOMER"]
+    },
+    {
+      "username": "agent1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Agent",
+      "lastName": "One",
+      "email": "agent1@itsm.local",
+      "credentials": [{ "type": "password", "value": "agent1", "temporary": false }],
+      "realmRoles": ["AGENT"]
+    },
+    {
+      "username": "manager1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Manager",
+      "lastName": "One",
+      "email": "manager1@itsm.local",
+      "credentials": [{ "type": "password", "value": "manager1", "temporary": false }],
+      "realmRoles": ["MANAGER"]
+    }
+  ]
+}

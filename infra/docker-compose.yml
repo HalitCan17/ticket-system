@@ -7,16 +7,54 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-itsm}
       POSTGRES_USER: ${POSTGRES_USER:-itsm}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-itsm}
+      # Used by postgres/init/01-keycloak.sh (runs only on an empty volume)
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       # PostgreSQL 18+ images keep data under /var/lib/postgresql/<major>/docker
       - pgdata:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0
+    # start-dev: HTTP, no TLS. Local development only.
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Tokens always carry iss=http://localhost:<port>/realms/itsm, also when the backend
+      # talks to Keycloak over the internal network (backchannel).
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8081}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-8081}:8080"
+    volumes:
+      - ./keycloak/itsm-realm.json:/opt/keycloak/data/import/itsm-realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # The image has no curl; use bash's /dev/tcp against the management port.
+      test:
+        - CMD
+        - bash
+        - -c
+        - "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 15
 
   backend:
     build:
