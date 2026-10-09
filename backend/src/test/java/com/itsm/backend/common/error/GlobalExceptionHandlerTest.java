@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 class GlobalExceptionHandlerTest {
 
@@ -56,6 +58,14 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void springBuiltProblemDetailAlsoGetsCode() throws Exception {
+        // NoResourceFoundException's body is created inside Spring's handler, not passed in.
+        mvc.perform(get("/no-resource"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
     void optimisticLockIsConflict() throws Exception {
         mvc.perform(get("/stale"))
                 .andExpect(status().isConflict())
@@ -83,6 +93,11 @@ class GlobalExceptionHandlerTest {
 
         @PostMapping("/validate")
         void validate(@Valid @RequestBody NamedRequest request) {
+        }
+
+        @GetMapping("/no-resource")
+        void noResource() throws NoResourceFoundException {
+            throw new NoResourceFoundException(HttpMethod.GET, "no-resource");
         }
 
         @GetMapping("/stale")

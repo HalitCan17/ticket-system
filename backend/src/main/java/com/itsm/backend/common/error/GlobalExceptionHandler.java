@@ -58,16 +58,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, body, headers, status, request);
     }
 
-    /** Adds a generic {@code code} to ProblemDetails produced for Spring MVC's own exceptions. */
+    /**
+     * Adds a generic {@code code} to ProblemDetails produced for Spring MVC's own exceptions.
+     * Applied after {@code super}, because for some exceptions (e.g. NoResourceFoundException)
+     * Spring only builds the body there.
+     */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(
             Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
-        if (body instanceof ProblemDetail pd
+        ResponseEntity<Object> response = super.handleExceptionInternal(ex, body, headers, statusCode, request);
+        if (response != null && response.getBody() instanceof ProblemDetail pd
                 && (pd.getProperties() == null || !pd.getProperties().containsKey(CODE))) {
             HttpStatus resolved = HttpStatus.resolve(statusCode.value());
             pd.setProperty(CODE, resolved != null ? resolved.name() : "ERROR");
         }
-        return super.handleExceptionInternal(ex, body, headers, statusCode, request);
+        return response;
     }
 
     private static Map<String, String> toError(FieldError error) {
