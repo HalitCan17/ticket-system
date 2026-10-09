@@ -1,6 +1,5 @@
 package com.itsm.backend.security;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -26,6 +25,6 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
     @Override
     public CurrentUser resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
             NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
-        return provider.resolve(webRequest.getNativeRequest(HttpServletRequest.class));
+        return provider.resolve();
     }
 }

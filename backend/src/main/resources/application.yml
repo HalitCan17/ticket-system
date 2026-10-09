@@ -12,6 +12,15 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # `iss` claim the tokens must carry (the public Keycloak URL).
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/itsm}
+          # Where signing keys are fetched; in Docker this is the internal Keycloak URL.
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/itsm/protocol/openid-connect/certs}
+          audiences: itsm-backend
 
 server:
   port: ${SERVER_PORT:8080}

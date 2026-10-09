@@ -10,22 +10,20 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.itsm.backend.TestTokens;
 import com.itsm.backend.TestcontainersConfiguration;
-import com.itsm.backend.security.DevHeaderCurrentUserProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("dev")
 @Import(TestcontainersConfiguration.class)
 class TicketCommentApiIntegrationTest {
 
@@ -121,8 +119,6 @@ class TicketCommentApiIntegrationTest {
     }
 
     private ResultActions perform(MockHttpServletRequestBuilder request, String userId, String role) throws Exception {
-        return mvc.perform(request
-                .header(DevHeaderCurrentUserProvider.USER_ID_HEADER, userId)
-                .header(DevHeaderCurrentUserProvider.ROLE_HEADER, role));
+        return mvc.perform(request.with(TestTokens.user(userId, role)));
     }
 }

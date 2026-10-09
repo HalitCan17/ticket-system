@@ -61,16 +61,19 @@ services:
       context: ../backend
     image: itsm-backend:0.0.1-SNAPSHOT
     environment:
-      # `dev` enables the temporary X-User-Id / X-User-Role header identity.
-      # Remove it when Keycloak lands (docs/adr/0003-temporary-dev-header-identity.md).
-      SPRING_PROFILES_ACTIVE: docker,dev
+      SPRING_PROFILES_ACTIVE: docker
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-itsm}
       DB_USERNAME: ${POSTGRES_USER:-itsm}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-itsm}
+      # Tokens are issued for the public URL; signing keys are fetched over the internal network.
+      KEYCLOAK_ISSUER_URI: http://localhost:${KEYCLOAK_PORT:-8081}/realms/itsm
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/itsm/protocol/openid-connect/certs
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness || exit 1"]

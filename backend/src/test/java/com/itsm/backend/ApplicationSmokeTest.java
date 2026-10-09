@@ -33,8 +33,8 @@ class ApplicationSmokeTest {
     }
 
     @Test
-    void ticketApiRejectsRequestsOutsideDevProfile() {
-        // Even with the dev headers, no identity is accepted without the `dev` profile.
+    void ticketApiRequiresBearerToken() {
+        // The former dev identity headers must no longer be accepted.
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-User-Id", "agent1");
         headers.set("X-User-Role", "AGENT");
