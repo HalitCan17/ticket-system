@@ -1,0 +1,11 @@
+.message {
+  max-width: 32rem;
+  margin: 20vh auto 0;
+  padding: 0 var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.message button {
+  margin-top: var(--space-3);
+}
