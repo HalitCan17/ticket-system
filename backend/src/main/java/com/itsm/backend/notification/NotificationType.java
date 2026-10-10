@@ -10,5 +10,7 @@ public enum NotificationType {
     /** A staff-only comment was added. Never sent to customers. */
     INTERNAL_COMMENT_ADDED,
     /** The ticket exceeded its resolution SLA. */
-    SLA_BREACHED
+    SLA_BREACHED,
+    /** A file was attached; internal attachments are reported to staff only. */
+    ATTACHMENT_ADDED
 }

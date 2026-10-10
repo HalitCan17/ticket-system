@@ -4,6 +4,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
+import com.itsm.backend.attachment.TicketAttachment;
+import com.itsm.backend.attachment.TicketAttachmentAddedEvent;
 import com.itsm.backend.common.error.NotFoundException;
 import com.itsm.backend.notification.NotificationRules.Recipient;
 import com.itsm.backend.security.CurrentUser;
@@ -45,6 +47,13 @@ public class NotificationService {
     public void onCommentAdded(TicketCommentAddedEvent event) {
         create(event.ticket(), NotificationRules.forComment(event.ticket(), event.comment()),
                 event.comment().getAuthorId(), null);
+    }
+
+    @EventListener
+    public void onAttachmentAdded(TicketAttachmentAddedEvent event) {
+        TicketAttachment attachment = event.attachment();
+        create(event.ticket(), NotificationRules.forAttachment(event.ticket(), attachment.getVisibility(),
+                attachment.getUploaderId()), attachment.getUploaderId(), null);
     }
 
     /** Notifies the assignee and all known managers that the ticket exceeded its SLA. */

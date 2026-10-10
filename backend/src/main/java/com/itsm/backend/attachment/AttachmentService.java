@@ -15,6 +15,7 @@ import com.itsm.backend.security.Role;
 import com.itsm.backend.ticket.domain.CommentVisibility;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.service.TicketService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -40,14 +41,16 @@ public class AttachmentService {
     private final TicketAttachmentRepository attachments;
     private final AttachmentStorage storage;
     private final AttachmentProperties properties;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public AttachmentService(TicketService ticketService, TicketAttachmentRepository attachments,
-            AttachmentStorage storage, AttachmentProperties properties, Clock clock) {
+            AttachmentStorage storage, AttachmentProperties properties, ApplicationEventPublisher events, Clock clock) {
         this.ticketService = ticketService;
         this.attachments = attachments;
         this.storage = storage;
         this.properties = properties;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -85,6 +88,7 @@ public class AttachmentService {
 
         TicketAttachment attachment = attachments.save(new TicketAttachment(ticket.getId(), user.id(), visibility,
                 accepted.fileName(), accepted.contentType(), stored, clock.instant()));
+        events.publishEvent(new TicketAttachmentAddedEvent(ticket, attachment));
         return new AttachmentView(attachment, canDelete(user, ticket, attachment));
     }
 

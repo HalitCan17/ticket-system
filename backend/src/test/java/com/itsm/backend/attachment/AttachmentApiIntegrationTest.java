@@ -87,6 +87,22 @@ class AttachmentApiIntegrationTest {
     }
 
     @Test
+    void uploadNotifiesTheOtherParticipants() throws Exception {
+        long ticketId = createTicket();
+        transition(ticketId, "{\"targetStatus\":\"IN_PROGRESS\"}", agent, "AGENT");
+
+        upload(ticketId, "log.txt", LOG, "EXTERNAL", customer, "CUSTOMER").andExpect(status().isCreated());
+        upload(ticketId, "internal.txt", LOG, "INTERNAL", manager, "MANAGER").andExpect(status().isCreated());
+
+        assertThat(jdbc.queryForList(
+                "select type from notifications where recipient_id = ? and ticket_id = ? order by id",
+                String.class, agent, ticketId)).containsExactly("ATTACHMENT_ADDED", "ATTACHMENT_ADDED");
+        assertThat(jdbc.queryForList(
+                "select type from notifications where recipient_id = ? and ticket_id = ? and type = 'ATTACHMENT_ADDED'",
+                String.class, customer, ticketId)).isEmpty(); // own upload; internal one is hidden
+    }
+
+    @Test
     void internalAttachmentsAreInvisibleToTheCustomer() throws Exception {
         long ticketId = createTicket();
         long id = upload(ticketId, "notes.log", LOG, "INTERNAL", agent, "AGENT")

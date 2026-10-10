@@ -1,5 +1,6 @@
 package com.itsm.backend.notification;
 
+import static com.itsm.backend.notification.NotificationType.ATTACHMENT_ADDED;
 import static com.itsm.backend.notification.NotificationType.AUTO_CLOSED;
 import static com.itsm.backend.notification.NotificationType.COMMENT_ADDED;
 import static com.itsm.backend.notification.NotificationType.INTERNAL_COMMENT_ADDED;
@@ -88,6 +89,18 @@ class NotificationRulesTest {
         assertThat(NotificationRules.forComment(ticket, comment(CUSTOMER, CommentVisibility.EXTERNAL))).isEmpty();
         assertThat(NotificationRules.forComment(ticket, comment(MANAGER, CommentVisibility.EXTERNAL)))
                 .containsExactly(new Recipient(CUSTOMER, COMMENT_ADDED));
+    }
+
+    @Test
+    void attachmentsFollowTheCommentAudience() {
+        Ticket ticket = assignedTo(AGENT);
+
+        assertThat(NotificationRules.forAttachment(ticket, CommentVisibility.EXTERNAL, CUSTOMER))
+                .containsExactly(new Recipient(AGENT, ATTACHMENT_ADDED));
+        assertThat(NotificationRules.forAttachment(ticket, CommentVisibility.EXTERNAL, AGENT))
+                .containsExactly(new Recipient(CUSTOMER, ATTACHMENT_ADDED));
+        assertThat(NotificationRules.forAttachment(ticket, CommentVisibility.INTERNAL, MANAGER))
+                .containsExactly(new Recipient(AGENT, ATTACHMENT_ADDED));
     }
 
     @Test

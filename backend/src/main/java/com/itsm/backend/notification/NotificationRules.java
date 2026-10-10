@@ -48,6 +48,17 @@ public final class NotificationRules {
                 ticket.getRequesterId(), ticket.getAssigneeId());
     }
 
+    /**
+     * Same audience as comments: customer-visible attachments go to requester and assignee, internal ones
+     * only to the assignee; never to the uploader.
+     */
+    public static List<Recipient> forAttachment(Ticket ticket, CommentVisibility visibility, String uploaderId) {
+        return visibility == CommentVisibility.INTERNAL
+                ? recipients(NotificationType.ATTACHMENT_ADDED, uploaderId, ticket.getAssigneeId())
+                : recipients(NotificationType.ATTACHMENT_ADDED, uploaderId,
+                        ticket.getRequesterId(), ticket.getAssigneeId());
+    }
+
     /** SLA breaches go to the assignee (if any) and every manager. */
     public static List<Recipient> forSlaBreach(Ticket ticket, Collection<String> managerIds) {
         Set<String> users = new LinkedHashSet<>();
