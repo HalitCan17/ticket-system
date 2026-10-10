@@ -68,6 +68,9 @@ services:
       # Tokens are issued for the public URL; signing keys are fetched over the internal network.
       KEYCLOAK_ISSUER_URI: http://localhost:${KEYCLOAK_PORT:-8081}/realms/itsm
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/itsm/protocol/openid-connect/certs
+      # itsm.auto-close.* (dashes are dropped in environment variable names)
+      ITSM_AUTOCLOSE_AFTER: ${ITSM_AUTOCLOSE_AFTER:-7d}
+      ITSM_AUTOCLOSE_POLLINTERVAL: ${ITSM_AUTOCLOSE_POLLINTERVAL:-60s}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
