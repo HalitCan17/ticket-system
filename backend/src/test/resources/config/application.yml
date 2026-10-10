@@ -1,0 +1,4 @@
+# Test-only overrides (classpath:/config/ takes precedence over classpath:/application.yml).
+itsm:
+  attachments:
+    dir: ${java.io.tmpdir}/itsm-test-attachments

@@ -22,3 +22,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local attachment storage when running the backend outside Docker
+backend/data/
