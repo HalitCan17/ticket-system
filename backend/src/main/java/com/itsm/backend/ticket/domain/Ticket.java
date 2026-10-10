@@ -66,6 +66,9 @@ public class Ticket {
     @Column(name = "sla_running_since")
     private Instant slaRunningSince;
 
+    @Column(name = "sla_breach_notified_at")
+    private Instant slaBreachNotifiedAt;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -128,6 +131,15 @@ public class Ticket {
         closedAt = now;
         updatedAt = now;
         updateSlaClock(now);
+    }
+
+    /** An SLA breach is notified once per ticket, also if an objection later resumes the clock. */
+    public void markSlaBreachNotified(Instant now) {
+        slaBreachNotifiedAt = now;
+    }
+
+    public Instant getSlaBreachNotifiedAt() {
+        return slaBreachNotifiedAt;
     }
 
     public SlaClock getSlaClock() {

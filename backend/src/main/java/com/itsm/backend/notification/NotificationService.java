@@ -11,6 +11,7 @@ import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.event.TicketCommentAddedEvent;
 import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
+import com.itsm.backend.user.UserDirectory;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,10 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationService {
 
     private final NotificationRepository notifications;
+    private final UserDirectory userDirectory;
     private final Clock clock;
 
-    public NotificationService(NotificationRepository notifications, Clock clock) {
+    public NotificationService(NotificationRepository notifications, UserDirectory userDirectory, Clock clock) {
         this.notifications = notifications;
+        this.userDirectory = userDirectory;
         this.clock = clock;
     }
 
@@ -42,6 +45,11 @@ public class NotificationService {
     public void onCommentAdded(TicketCommentAddedEvent event) {
         create(event.ticket(), NotificationRules.forComment(event.ticket(), event.comment()),
                 event.comment().getAuthorId(), null);
+    }
+
+    /** Notifies the assignee and all known managers that the ticket exceeded its SLA. */
+    public void notifySlaBreach(Ticket ticket) {
+        create(ticket, NotificationRules.forSlaBreach(ticket, userDirectory.managerIds()), null, null);
     }
 
     /** The caller's own notifications only. */

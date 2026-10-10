@@ -49,7 +49,7 @@ class JwtCurrentUserProviderTest {
 
         provider.resolve();
 
-        verify(userDirectory).remember(new UserProfile("user-9", "customer9", "Customer Nine", "c9@itsm.local"));
+        verify(userDirectory).remember(new UserProfile("user-9", "customer9", "Customer Nine", "c9@itsm.local", "CUSTOMER"));
     }
 
     @Test

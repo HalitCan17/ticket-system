@@ -41,7 +41,7 @@ public class JwtCurrentUserProvider implements CurrentUserProvider {
         Jwt jwt = token.getToken();
         CurrentUser user = fromJwt(jwt);
         userDirectory.remember(new UserProfile(user.id(), jwt.getClaimAsString("preferred_username"),
-                jwt.getClaimAsString("name"), jwt.getClaimAsString("email")));
+                jwt.getClaimAsString("name"), jwt.getClaimAsString("email"), user.role().name()));
         return user;
     }
 

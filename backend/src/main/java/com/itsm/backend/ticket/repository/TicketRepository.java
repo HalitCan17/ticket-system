@@ -31,4 +31,22 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             order by t.id""")
     List<Long> findAutoCloseCandidateIds(@Param("cutoff") Instant cutoff, @Param("afterId") long afterId,
             Pageable pageable);
+
+    /**
+     * Ids of open (not RESOLVED/CLOSED) tickets whose SLA is exceeded at {@code now} and not yet notified,
+     * in id order after {@code afterId}. The elapsed time is computed like
+     * {@link com.itsm.backend.ticket.domain.SlaClock#elapsed}.
+     */
+    @Query(value = """
+            select id from tickets
+            where sla_breach_notified_at is null
+              and status not in ('RESOLVED', 'CLOSED')
+              and sla_elapsed_seconds
+                  + coalesce(extract(epoch from (cast(:now as timestamptz) - sla_running_since)), 0)
+                  > sla_target_seconds
+              and id > :afterId
+            order by id
+            limit :limit""", nativeQuery = true)
+    List<Long> findSlaBreachCandidateIds(@Param("now") Instant now, @Param("afterId") long afterId,
+            @Param("limit") int limit);
 }

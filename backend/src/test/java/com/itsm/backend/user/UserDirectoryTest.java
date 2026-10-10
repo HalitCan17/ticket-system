@@ -31,30 +31,39 @@ class UserDirectoryTest {
 
     @Test
     void remembersAndUpdatesProfile() {
-        directory.remember(new UserProfile(id, "ayse", "Ayşe Yılmaz", "ayse@itsm.local"));
+        directory.remember(new UserProfile(id, "ayse", "Ayşe Yılmaz", "ayse@itsm.local", "CUSTOMER"));
         assertThat(directory.displayNames(List.of(id))).containsEntry(id, "Ayşe Yılmaz");
 
-        directory.remember(new UserProfile(id, "ayse", "Ayşe Kaya", "ayse@itsm.local"));
+        directory.remember(new UserProfile(id, "ayse", "Ayşe Kaya", "ayse@itsm.local", "CUSTOMER"));
         assertThat(directory.displayNames(List.of(id))).containsEntry(id, "Ayşe Kaya");
     }
 
     @Test
     void unchangedProfileIsNotWrittenAgain() {
-        UserProfile profile = new UserProfile(id, "mehmet", "Mehmet Demir", null);
+        UserProfile profile = new UserProfile(id, "mehmet", "Mehmet Demir", null, "CUSTOMER");
         directory.remember(profile);
         Timestamp firstWrite = updatedAt();
 
-        directory.remember(new UserProfile(id, "mehmet", "Mehmet Demir", null));
+        directory.remember(new UserProfile(id, "mehmet", "Mehmet Demir", null, "CUSTOMER"));
 
         assertThat(updatedAt()).isEqualTo(firstWrite);
     }
 
     @Test
     void fallsBackToUsernameAndSkipsUnknownIds() {
-        directory.remember(new UserProfile(id, "agent7", null, null));
+        directory.remember(new UserProfile(id, "agent7", null, null, "CUSTOMER"));
 
         assertThat(directory.displayNames(Arrays.asList(id, "unknown-id", null)))
                 .containsExactlyEntriesOf(Map.of(id, "agent7"));
+    }
+
+    @Test
+    void knowsManagersByTheirLastRole() {
+        directory.remember(new UserProfile(id, "boss", "Boss", null, "MANAGER"));
+        assertThat(directory.managerIds()).contains(id);
+
+        directory.remember(new UserProfile(id, "boss", "Boss", null, "AGENT"));
+        assertThat(directory.managerIds()).doesNotContain(id);
     }
 
     @Test

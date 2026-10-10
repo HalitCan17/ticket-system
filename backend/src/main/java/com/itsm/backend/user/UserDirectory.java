@@ -4,6 +4,7 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -50,23 +51,34 @@ public class UserDirectory {
         }
         try {
             jdbc.update("""
-                    insert into app_users (id, username, display_name, email, updated_at)
-                    values (:id, :username, :displayName, :email, :updatedAt)
+                    insert into app_users (id, username, display_name, email, role, updated_at)
+                    values (:id, :username, :displayName, :email, :role, :updatedAt)
                     on conflict (id) do update set
                         username = excluded.username,
                         display_name = excluded.display_name,
                         email = excluded.email,
+                        role = excluded.role,
                         updated_at = excluded.updated_at""",
                     new MapSqlParameterSource()
                             .addValue("id", profile.id())
                             .addValue("username", profile.username())
                             .addValue("displayName", profile.displayName())
                             .addValue("email", profile.email())
+                            .addValue("role", profile.role())
                             .addValue("updatedAt", Timestamp.from(clock.instant())));
             lastWritten.put(profile.id(), profile);
         } catch (RuntimeException e) {
             log.warn("Could not record user {} in the directory", profile.id(), e);
         }
+    }
+
+    /**
+     * Users whose last token carried the MANAGER role. Only users who signed in at least once are known
+     * here; see docs/adr/0007-in-app-notifications.md.
+     */
+    public List<String> managerIds() {
+        return jdbc.queryForList("select id from app_users where role = 'MANAGER' order by id",
+                new MapSqlParameterSource(), String.class);
     }
 
     /** Display name (or username) per known id; unknown ids are absent from the result. */
