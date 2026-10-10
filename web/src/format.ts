@@ -20,6 +20,13 @@ export function formatDuration(totalSeconds: number): string {
   return parts.slice(0, 2).join(' ');
 }
 
+/** "512 B", "34 KB", "2,4 MB" (Turkish decimal comma). */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} MB`;
+}
+
 /**
  * How to show a user referenced by id: "Siz" for the signed-in user, otherwise the name from the
  * backend's user directory, falling back to a short id.

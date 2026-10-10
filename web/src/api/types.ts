@@ -99,7 +99,8 @@ export type NotificationType =
   | 'AUTO_CLOSED'
   | 'COMMENT_ADDED'
   | 'INTERNAL_COMMENT_ADDED'
-  | 'SLA_BREACHED';
+  | 'SLA_BREACHED'
+  | 'ATTACHMENT_ADDED';
 
 /** Mirrors backend NotificationResponse; the sentence is built in the UI from the type. */
 export interface AppNotification {
@@ -113,4 +114,17 @@ export interface AppNotification {
   actorName: string | null;
   createdAt: string;
   read: boolean;
+}
+
+export interface Attachment {
+  id: number;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  visibility: CommentVisibility;
+  uploaderId: string;
+  uploaderName: string | null;
+  createdAt: string;
+  /** Uploader or manager, ticket not closed. */
+  canDelete: boolean;
 }

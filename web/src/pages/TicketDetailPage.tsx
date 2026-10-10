@@ -5,6 +5,7 @@ import { ApiError } from '../api/client.ts';
 import type { CreateCommentRequest, Ticket, TicketStatus } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { isStaff } from '../auth/roles.ts';
+import { Attachments } from '../components/Attachments.tsx';
 import { PriorityBadge, SlaBadge, StatusBadge } from '../components/Badges.tsx';
 import { CommentForm } from '../components/CommentForm.tsx';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
@@ -102,6 +103,8 @@ export function TicketDetailPage() {
             onTransition={(target, note) => transition.mutate({ target, note })}
           />
           {transition.isError && <ErrorMessage error={transition.error} />}
+
+          <Attachments ticketId={t.id} currentUserId={user.id} staff={staff} closed={t.status === 'CLOSED'} />
 
           <section>
             <h2>Yorumlar</h2>

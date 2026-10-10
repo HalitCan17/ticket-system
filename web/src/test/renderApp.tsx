@@ -25,6 +25,10 @@ export function fakeApi(overrides: Partial<TicketsApi> = {}): TicketsApi {
     history: vi.fn().mockResolvedValue([]),
     comments: vi.fn().mockResolvedValue([]),
     addComment: vi.fn(),
+    attachments: vi.fn().mockResolvedValue([]),
+    uploadAttachment: vi.fn(),
+    downloadAttachment: vi.fn(),
+    deleteAttachment: vi.fn(),
     ...overrides,
   };
 }

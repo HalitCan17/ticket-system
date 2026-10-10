@@ -1,6 +1,8 @@
 import type { ApiClient } from './client.ts';
 import type {
+  Attachment,
   Comment,
+  CommentVisibility,
   CreateCommentRequest,
   CreateTicketRequest,
   Page,
@@ -34,6 +36,17 @@ export function ticketsApi(client: ApiClient) {
     comments: (id: number): Promise<Comment[]> => client.get(`/api/tickets/${id}/comments`),
     addComment: (id: number, request: CreateCommentRequest): Promise<Comment> =>
       client.post(`/api/tickets/${id}/comments`, request),
+    attachments: (id: number): Promise<Attachment[]> => client.get(`/api/tickets/${id}/attachments`),
+    uploadAttachment(id: number, file: File, visibility: CommentVisibility): Promise<Attachment> {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('visibility', visibility);
+      return client.upload(`/api/tickets/${id}/attachments`, form);
+    },
+    downloadAttachment: (id: number, attachmentId: number): Promise<Blob> =>
+      client.download(`/api/tickets/${id}/attachments/${attachmentId}/content`),
+    deleteAttachment: (id: number, attachmentId: number): Promise<void> =>
+      client.delete(`/api/tickets/${id}/attachments/${attachmentId}`),
   };
 }
 

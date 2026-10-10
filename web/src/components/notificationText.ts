@@ -17,5 +17,7 @@ export function notificationText(n: AppNotification): string {
       return `${actor} dahili not ekledi`;
     case 'SLA_BREACHED':
       return 'SLA süresi aşıldı';
+    case 'ATTACHMENT_ADDED':
+      return `${actor} dosya ekledi`;
   }
 }
