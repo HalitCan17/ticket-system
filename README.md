@@ -3,7 +3,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 5** — uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
+> Durum: **Aşama 6** — ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -59,8 +59,23 @@ cd web && npm run dev
 - **Talep detayı:** yalnızca kullanıcının yapabileceği aksiyonlar (backend'in `allowedTransitions` alanı), çözüm notu ve
   itiraz gerekçesi zorunlu, çözüm ve otomatik kapanış bildirimi, SLA bilgileri, statü geçmişi, yorumlar
   (personel için dahili / müşteriye açık seçimi, dahili yorumlar müşteriye hiç gelmez).
+- **Ekler:** talep detayında dosya ekleme, indirme ve silme (personel için dahili / müşteriye açık seçimi).
 - **Bildirimler:** üst çubukta zil ve okunmamış sayısı; tıklayınca ilgili talep açılır.
 - Mimari: [ADR 0006](docs/adr/0006-web-app-architecture.md).
+
+## Ekler
+Dosyalar Docker volume'unda (`attachments`) saklanır, veritabanında yalnızca bilgileri durur.
+
+- Dosya başına en fazla **10 MB**. İzin verilen türler: png, jpg/jpeg, gif, webp, pdf, txt, log, csv, zip, docx, xlsx, pptx.
+  Uzantının yanında dosyanın ilk baytları da kontrol edilir; adı değiştirilmiş bir dosya reddedilir.
+- Görünürlük yorumlardaki gibidir: müşteri dahili ekleri göremez. Yükleyen kendi ekini, yönetici her eki silebilir.
+  Kapalı taleplerde ek değişmez.
+- İndirmeler her zaman dosya olarak iner (tarayıcıda açılmaz).
+- Yedek alırken `pgdata` ve `attachments` volume'larını birlikte alın.
+
+API: `GET /api/tickets/{id}/attachments`, `POST /api/tickets/{id}/attachments` (multipart: `file`, `visibility`),
+`GET /api/tickets/{id}/attachments/{attachmentId}/content`, `DELETE /api/tickets/{id}/attachments/{attachmentId}`.
+Ayrıntılar: [ADR 0008](docs/adr/0008-attachments.md).
 
 ## Bildirimler
 Uygulama içi bildirimlerdir (e-posta yok), arayüz 30 saniyede bir kontrol eder. İşlemi yapan kişi kendi işlemi için bildirim almaz.
@@ -70,6 +85,7 @@ Uygulama içi bildirimlerdir (e-posta yok), arayüz 30 saniyede bir kontrol eder
 | Statü değişikliği | talep eden ve atanan |
 | Müşteriye açık yorum | talep eden ve atanan |
 | Dahili yorum | yalnızca atanan (müşteriye asla) |
+| Ek yüklendi | yorumlardaki gibi (dahili ek yalnızca atanana) |
 | Otomatik kapanış | talep eden |
 | SLA ihlali (ticket başına bir kez) | atanan ve tüm yöneticiler* |
 
@@ -185,4 +201,5 @@ curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Co
 - [ADR 0005 — SLA ve otomatik kapanış](docs/adr/0005-sla-and-auto-close.md)
 - [ADR 0006 — Web uygulaması mimarisi](docs/adr/0006-web-app-architecture.md)
 - [ADR 0007 — Uygulama içi bildirimler](docs/adr/0007-in-app-notifications.md)
+- [ADR 0008 — Ticket ekleri](docs/adr/0008-attachments.md)
 - [jBPM spike raporu](docs/jbpm-spike.md)
