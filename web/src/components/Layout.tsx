@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { ROLE_LABELS } from '../auth/roles.ts';
+import { NotificationBell } from './NotificationBell.tsx';
 import styles from './Layout.module.css';
 
 export function Layout() {
@@ -19,6 +20,7 @@ export function Layout() {
           <NavLink to="/tickets/new">Yeni talep</NavLink>
         </nav>
         <div className={styles.user}>
+          <NotificationBell />
           <span>
             {user.displayName} <span className={styles.role}>· {ROLE_LABELS[user.role]}</span>
           </span>

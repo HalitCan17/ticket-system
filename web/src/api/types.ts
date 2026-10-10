@@ -93,3 +93,24 @@ export interface ProblemDetail {
   code?: string;
   errors?: { field: string; message: string }[];
 }
+
+export type NotificationType =
+  | 'STATUS_CHANGED'
+  | 'AUTO_CLOSED'
+  | 'COMMENT_ADDED'
+  | 'INTERNAL_COMMENT_ADDED'
+  | 'SLA_BREACHED';
+
+/** Mirrors backend NotificationResponse; the sentence is built in the UI from the type. */
+export interface AppNotification {
+  id: number;
+  type: NotificationType;
+  ticketId: number;
+  ticketTitle: string | null;
+  /** The ticket's status right after a STATUS_CHANGED. */
+  ticketStatus: TicketStatus | null;
+  actorId: string | null;
+  actorName: string | null;
+  createdAt: string;
+  read: boolean;
+}

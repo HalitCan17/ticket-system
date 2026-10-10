@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, type RouteObject } from 'react-router';
 import { ApiContext } from './api/ApiContext.tsx';
 import { ApiError, createApiClient } from './api/client.ts';
+import { notificationsApi } from './api/notifications.ts';
 import { ticketsApi } from './api/tickets.ts';
 import { useAuth } from './auth/AuthContext.tsx';
 import { Layout } from './components/Layout.tsx';
@@ -40,7 +41,10 @@ export function createQueryClient(): QueryClient {
 /** API client and query cache for the signed-in user (must be inside the AuthGate). */
 export function AppProviders({ children }: { children: ReactNode }) {
   const { getToken } = useAuth();
-  const api = useMemo(() => ticketsApi(createApiClient(getToken)), [getToken]);
+  const api = useMemo(() => {
+    const client = createApiClient(getToken);
+    return { tickets: ticketsApi(client), notifications: notificationsApi(client) };
+  }, [getToken]);
   const [queryClient] = useState(createQueryClient);
 
   return (
