@@ -3,7 +3,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 2** — ticket çekirdeği backend API'si + Keycloak ile kimlik doğrulama (JWT).
+> Durum: **Aşama 3** — ticket çekirdeği backend API'si, Keycloak ile kimlik doğrulama (JWT), SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -55,6 +55,40 @@ NEW ──► IN_PROGRESS ◄──► WAITING_FOR_CUSTOMER
 | RESOLVED → CLOSED | ticket sahibi, MANAGER |
 
 Müşteri yalnızca kendi ticket'larını görür (başkasınınki için 404). `INTERNAL` yorumlar yalnızca AGENT/MANAGER'a görünür.
+
+## SLA ve otomatik kapanış
+Çözüm süresi SLA'sı takvim süresiyle (7/24) sayılır; hedef ticket açılırken öncelikten alınır:
+
+| Öncelik | Hedef |
+|---|---|
+| CRITICAL | 4 saat |
+| HIGH | 8 saat |
+| MEDIUM | 24 saat |
+| LOW | 72 saat |
+
+Saat `NEW`/`IN_PROGRESS`'te çalışır, `WAITING_FOR_CUSTOMER`'da **durur**, çözümde durur; itirazda kaldığı yerden devam eder.
+Her ticket cevabında `sla` alanı döner:
+
+```json
+"sla": {"state":"RUNNING","targetSeconds":14400,"elapsedSeconds":5,"remainingSeconds":14395,
+        "dueAt":"2026-10-10T17:09:04.209911Z","breached":false}
+```
+
+`RESOLVED` ticket müşteri yanıt vermezse **7 gün** sonra sistem tarafından kapatılır (geçmişte `changedBy: "system"`);
+cevaptaki `autoCloseAt` bu anı gösterir. Ayarlar: [ADR 0005](docs/adr/0005-sla-and-auto-close.md).
+
+| Ayar | Varsayılan | Compose env |
+|---|---|---|
+| `itsm.sla.targets.<PRIORITY>` | yukarıdaki tablo | — |
+| `itsm.auto-close.after` | `7d` | `ITSM_AUTOCLOSE_AFTER` |
+| `itsm.auto-close.poll-interval` | `60s` | `ITSM_AUTOCLOSE_POLLINTERVAL` |
+| `itsm.auto-close.enabled` | `true` | — |
+
+Otomatik kapanışı bir dakika içinde görmek için:
+
+```bash
+ITSM_AUTOCLOSE_AFTER=30s ITSM_AUTOCLOSE_POLLINTERVAL=5s docker compose -f infra/docker-compose.yml up -d backend
+```
 
 ## Kimlik doğrulama
 `/api/**` uçları Keycloak'ın `itsm` realm'inden alınmış bir access token ister (`Authorization: Bearer ...`).
@@ -108,4 +142,5 @@ curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Co
 - [ADR 0002 — Statü akışı servis katmanında](docs/adr/0002-ticket-status-flow-in-service-layer.md)
 - [ADR 0003 — Geçici dev header kimliği](docs/adr/0003-temporary-dev-header-identity.md) (yerini 0004 aldı)
 - [ADR 0004 — Keycloak ile JWT resource server](docs/adr/0004-keycloak-jwt-resource-server.md)
+- [ADR 0005 — SLA ve otomatik kapanış](docs/adr/0005-sla-and-auto-close.md)
 - [jBPM spike raporu](docs/jbpm-spike.md)
