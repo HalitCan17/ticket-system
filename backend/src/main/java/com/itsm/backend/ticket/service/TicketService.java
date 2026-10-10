@@ -11,9 +11,11 @@ import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
 import com.itsm.backend.ticket.dto.CreateTicketRequest;
 import com.itsm.backend.ticket.dto.TransitionRequest;
+import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
 import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
 import com.itsm.backend.ticket.sla.SlaProperties;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,13 +27,15 @@ public class TicketService {
     private final TicketRepository tickets;
     private final TicketStatusHistoryRepository history;
     private final SlaProperties sla;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public TicketService(TicketRepository tickets, TicketStatusHistoryRepository history, SlaProperties sla,
-            Clock clock) {
+            ApplicationEventPublisher events, Clock clock) {
         this.tickets = tickets;
         this.history = history;
         this.sla = sla;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -68,6 +72,7 @@ public class TicketService {
 
         TicketStatus previous = ticket.transitionTo(request.targetStatus(), user, note, now);
         history.save(new TicketStatusHistory(ticket.getId(), previous, ticket.getStatus(), user.id(), note, now));
+        events.publishEvent(new TicketStatusChangedEvent(ticket, previous, ticket.getStatus(), user.id()));
         return ticket;
     }
 

@@ -23,6 +23,7 @@ import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.dto.CreateCommentRequest;
 import com.itsm.backend.ticket.repository.TicketCommentRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 class TicketCommentServiceTest {
 
@@ -33,7 +34,9 @@ class TicketCommentServiceTest {
 
     final TicketService ticketService = mock(TicketService.class);
     final TicketCommentRepository comments = mock(TicketCommentRepository.class);
-    final TicketCommentService service = new TicketCommentService(ticketService, comments, Clock.fixed(NOW, ZoneOffset.UTC));
+    final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    final TicketCommentService service =
+            new TicketCommentService(ticketService, comments, events, Clock.fixed(NOW, ZoneOffset.UTC));
 
     final Ticket ticket = Ticket.open("VPN", "down", TicketPriority.HIGH, "cust1", Duration.ofHours(8), NOW);
 

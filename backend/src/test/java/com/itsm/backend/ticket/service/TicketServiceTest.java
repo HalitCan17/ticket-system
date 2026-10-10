@@ -23,11 +23,13 @@ import com.itsm.backend.ticket.domain.TicketPriority;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
 import com.itsm.backend.ticket.dto.TransitionRequest;
+import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
 import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
 import com.itsm.backend.ticket.sla.SlaProperties;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 
 class TicketServiceTest {
@@ -39,8 +41,9 @@ class TicketServiceTest {
 
     final TicketRepository tickets = mock(TicketRepository.class);
     final TicketStatusHistoryRepository history = mock(TicketStatusHistoryRepository.class);
+    final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     final TicketService service = new TicketService(
-            tickets, history, new SlaProperties(null), Clock.fixed(NOW, ZoneOffset.UTC));
+            tickets, history, new SlaProperties(null), events, Clock.fixed(NOW, ZoneOffset.UTC));
 
     final Ticket ticket = Ticket.open(
             "VPN", "down", TicketPriority.HIGH, "cust1", Duration.ofHours(8), NOW.minusSeconds(3600));
@@ -97,6 +100,17 @@ class TicketServiceTest {
         assertThatThrownBy(() -> service.transition(OWNER, 1L, new TransitionRequest(TicketStatus.IN_PROGRESS, null)))
                 .isInstanceOf(ForbiddenException.class);
         verify(history, never()).save(any());
+        verify(events, never()).publishEvent(any(Object.class));
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.NEW);
+    }
+
+    @Test
+    void transitionPublishesStatusChangedEvent() {
+        when(tickets.findById(1L)).thenReturn(Optional.of(ticket));
+
+        service.transition(AGENT, 1L, new TransitionRequest(TicketStatus.IN_PROGRESS, null));
+
+        verify(events).publishEvent(
+                new TicketStatusChangedEvent(ticket, TicketStatus.NEW, TicketStatus.IN_PROGRESS, "agent1"));
     }
 }

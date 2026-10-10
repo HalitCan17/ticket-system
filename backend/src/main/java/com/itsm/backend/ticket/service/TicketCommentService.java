@@ -10,7 +10,9 @@ import com.itsm.backend.ticket.domain.CommentVisibility;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketComment;
 import com.itsm.backend.ticket.dto.CreateCommentRequest;
+import com.itsm.backend.ticket.event.TicketCommentAddedEvent;
 import com.itsm.backend.ticket.repository.TicketCommentRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,11 +22,14 @@ public class TicketCommentService {
 
     private final TicketService ticketService;
     private final TicketCommentRepository comments;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    public TicketCommentService(TicketService ticketService, TicketCommentRepository comments, Clock clock) {
+    public TicketCommentService(TicketService ticketService, TicketCommentRepository comments,
+            ApplicationEventPublisher events, Clock clock) {
         this.ticketService = ticketService;
         this.comments = comments;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -45,7 +50,9 @@ public class TicketCommentService {
         if (ticket.isClosed()) {
             throw new ConflictException("TICKET_CLOSED", "Comments cannot be added to a closed ticket.");
         }
-        return comments.save(new TicketComment(
+        TicketComment comment = comments.save(new TicketComment(
                 ticket.getId(), user.id(), request.visibility(), request.body().strip(), clock.instant()));
+        events.publishEvent(new TicketCommentAddedEvent(ticket, comment));
+        return comment;
     }
 }

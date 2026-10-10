@@ -7,11 +7,13 @@ import java.util.List;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
+import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
 import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
 import com.itsm.backend.user.UserDirectory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -34,13 +36,16 @@ public class TicketAutoCloseService {
     private final TicketRepository tickets;
     private final TicketStatusHistoryRepository history;
     private final AutoCloseProperties properties;
+    private final ApplicationEventPublisher events;
     private final TransactionTemplate transaction;
 
     public TicketAutoCloseService(TicketRepository tickets, TicketStatusHistoryRepository history,
-            AutoCloseProperties properties, PlatformTransactionManager transactionManager) {
+            AutoCloseProperties properties, ApplicationEventPublisher events,
+            PlatformTransactionManager transactionManager) {
         this.tickets = tickets;
         this.history = history;
         this.properties = properties;
+        this.events = events;
         this.transaction = new TransactionTemplate(transactionManager);
     }
 
@@ -74,6 +79,8 @@ public class TicketAutoCloseService {
                 ticket.autoClose(now);
                 history.save(new TicketStatusHistory(ticket.getId(), TicketStatus.RESOLVED, TicketStatus.CLOSED,
                         SYSTEM_ACTOR, "Auto-closed: no customer response for " + describe(properties.after()), now));
+                events.publishEvent(new TicketStatusChangedEvent(
+                        ticket, TicketStatus.RESOLVED, TicketStatus.CLOSED, SYSTEM_ACTOR));
                 return true;
             });
             return Boolean.TRUE.equals(result);

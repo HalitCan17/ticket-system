@@ -24,6 +24,7 @@ import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -36,7 +37,7 @@ class TicketAutoCloseServiceTest {
     final TicketStatusHistoryRepository history = mock(TicketStatusHistoryRepository.class);
     final TicketAutoCloseService service = new TicketAutoCloseService(tickets, history,
             new AutoCloseProperties(true, Duration.ofDays(7), Duration.ofSeconds(60)),
-            mock(PlatformTransactionManager.class));
+            mock(ApplicationEventPublisher.class), mock(PlatformTransactionManager.class));
 
     @Test
     void closesResolvedTicketPastTheCutoffAndRecordsSystemActor() {
