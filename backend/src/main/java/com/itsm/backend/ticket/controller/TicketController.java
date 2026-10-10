@@ -11,6 +11,7 @@ import com.itsm.backend.ticket.dto.CreateTicketRequest;
 import com.itsm.backend.ticket.dto.StatusHistoryResponse;
 import com.itsm.backend.ticket.dto.TicketResponse;
 import com.itsm.backend.ticket.dto.TransitionRequest;
+import com.itsm.backend.ticket.service.TicketResponseAssembler;
 import com.itsm.backend.ticket.service.TicketService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -34,9 +35,11 @@ public class TicketController {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
 
     private final TicketService ticketService;
+    private final TicketResponseAssembler responses;
 
-    public TicketController(TicketService ticketService) {
+    public TicketController(TicketService ticketService, TicketResponseAssembler responses) {
         this.ticketService = ticketService;
+        this.responses = responses;
     }
 
     @PostMapping
@@ -44,7 +47,7 @@ public class TicketController {
         Ticket ticket = ticketService.create(user, request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(ticket.getId()).toUri();
-        return ResponseEntity.created(location).body(TicketResponse.from(ticket, user));
+        return ResponseEntity.created(location).body(responses.toResponse(ticket, user));
     }
 
     @GetMapping
@@ -55,18 +58,18 @@ public class TicketController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return PageResponse.of(
                 ticketService.list(user, status, PageRequest.of(page, size, NEWEST_FIRST)),
-                ticket -> TicketResponse.from(ticket, user));
+                ticket -> responses.toResponse(ticket, user));
     }
 
     @GetMapping("/{id}")
     public TicketResponse get(CurrentUser user, @PathVariable long id) {
-        return TicketResponse.from(ticketService.get(user, id), user);
+        return responses.toResponse(ticketService.get(user, id), user);
     }
 
     @PostMapping("/{id}/transitions")
     public TicketResponse transition(CurrentUser user, @PathVariable long id,
             @Valid @RequestBody TransitionRequest request) {
-        return TicketResponse.from(ticketService.transition(user, id, request), user);
+        return responses.toResponse(ticketService.transition(user, id, request), user);
     }
 
     @GetMapping("/{id}/history")

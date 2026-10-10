@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
@@ -15,6 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -101,6 +104,38 @@ class TicketApiIntegrationTest {
                 .andExpect(jsonPath("$[5].changedBy").value(customer))
                 .andExpect(jsonPath("$[5].note").value("Still cannot connect"))
                 .andExpect(jsonPath("$[7].toStatus").value("CLOSED"));
+    }
+
+    @Test
+    void responsesCarrySlaAndAutoCloseDeadline() throws Exception {
+        long id = createTicket(customer); // HIGH → default target 8h
+
+        perform(get("/api/tickets/{id}", id), customer, "CUSTOMER")
+                .andExpect(jsonPath("$.sla.state").value("RUNNING"))
+                .andExpect(jsonPath("$.sla.targetSeconds").value(8 * 3600))
+                .andExpect(jsonPath("$.sla.breached").value(false))
+                .andExpect(jsonPath("$.sla.dueAt").isString())
+                .andExpect(jsonPath("$.autoCloseAt").doesNotExist());
+
+        transition(id, agent, "AGENT", "IN_PROGRESS", null).andExpect(status().isOk());
+        transition(id, agent, "AGENT", "WAITING_FOR_CUSTOMER", null)
+                .andExpect(jsonPath("$.sla.state").value("PAUSED"))
+                .andExpect(jsonPath("$.sla.dueAt").doesNotExist());
+        transition(id, agent, "AGENT", "IN_PROGRESS", null)
+                .andExpect(jsonPath("$.sla.state").value("RUNNING"));
+
+        String resolved = transition(id, agent, "AGENT", "RESOLVED", "done")
+                .andExpect(jsonPath("$.sla.state").value("STOPPED"))
+                .andExpect(jsonPath("$.sla.remainingSeconds").value(
+                        greaterThan(8 * 3600 - 60)))
+                .andReturn().getResponse().getContentAsString();
+        JsonNode body = json.readTree(resolved);
+        assertThat(Instant.parse(body.get("autoCloseAt").asText()))
+                .isEqualTo(Instant.parse(body.get("resolvedAt").asText()).plus(Duration.ofDays(7)));
+
+        transition(id, customer, "CUSTOMER", "CLOSED", null)
+                .andExpect(jsonPath("$.autoCloseAt").doesNotExist())
+                .andExpect(jsonPath("$.sla.state").value("STOPPED"));
     }
 
     @Test

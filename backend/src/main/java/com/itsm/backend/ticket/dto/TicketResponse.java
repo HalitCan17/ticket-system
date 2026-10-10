@@ -3,14 +3,15 @@ package com.itsm.backend.ticket.dto;
 import java.time.Instant;
 import java.util.Set;
 
-import com.itsm.backend.security.CurrentUser;
-import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketPriority;
 import com.itsm.backend.ticket.domain.TicketStatus;
-import com.itsm.backend.ticket.domain.TicketWorkflow;
 
 /**
+ * Built by {@link com.itsm.backend.ticket.service.TicketResponseAssembler}.
+ *
  * @param allowedTransitions statuses the caller may move this ticket to; lets clients show only valid actions
+ * @param sla                resolution-time SLA as of the response time
+ * @param autoCloseAt        when a RESOLVED ticket will be closed automatically; null in other statuses
  */
 public record TicketResponse(
         Long id,
@@ -25,22 +26,7 @@ public record TicketResponse(
         Instant updatedAt,
         Instant resolvedAt,
         Instant closedAt,
-        Set<TicketStatus> allowedTransitions) {
-
-    public static TicketResponse from(Ticket ticket, CurrentUser viewer) {
-        return new TicketResponse(
-                ticket.getId(),
-                ticket.getTitle(),
-                ticket.getDescription(),
-                ticket.getStatus(),
-                ticket.getPriority(),
-                ticket.getRequesterId(),
-                ticket.getAssigneeId(),
-                ticket.getResolutionNote(),
-                ticket.getCreatedAt(),
-                ticket.getUpdatedAt(),
-                ticket.getResolvedAt(),
-                ticket.getClosedAt(),
-                TicketWorkflow.allowedTargets(ticket.getStatus(), viewer, ticket.getRequesterId()));
-    }
+        Set<TicketStatus> allowedTransitions,
+        SlaResponse sla,
+        Instant autoCloseAt) {
 }
