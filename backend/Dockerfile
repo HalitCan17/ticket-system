@@ -11,7 +11,9 @@ RUN --mount=type=cache,target=/root/.m2 mvn -B -q package -DskipTests \
     && cp target/itsm-backend-*.jar /workspace/app.jar
 
 FROM eclipse-temurin:21.0.12_8-jre-noble
-RUN groupadd --system app && useradd --system --gid app --no-create-home app
+# /data/attachments is owned by app so the (initially empty) attachments volume is writable.
+RUN groupadd --system app && useradd --system --gid app --no-create-home app \
+    && mkdir -p /data/attachments && chown app:app /data/attachments
 WORKDIR /app
 COPY --from=build /workspace/app.jar app.jar
 USER app

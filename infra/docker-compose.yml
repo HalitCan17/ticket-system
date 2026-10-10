@@ -71,6 +71,10 @@ services:
       # itsm.auto-close.* (dashes are dropped in environment variable names)
       ITSM_AUTOCLOSE_AFTER: ${ITSM_AUTOCLOSE_AFTER:-7d}
       ITSM_AUTOCLOSE_POLLINTERVAL: ${ITSM_AUTOCLOSE_POLLINTERVAL:-60s}
+      ITSM_ATTACHMENTS_DIR: /data/attachments
+    volumes:
+      # Attachment contents (metadata is in Postgres); keep together with pgdata when backing up.
+      - attachments:/data/attachments
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -106,3 +110,4 @@ services:
 
 volumes:
   pgdata:
+  attachments:
