@@ -4,13 +4,18 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
+import com.itsm.backend.common.error.NotFoundException;
 import com.itsm.backend.notification.NotificationRules.Recipient;
+import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.event.TicketCommentAddedEvent;
 import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Turns ticket events into notifications. Listeners run synchronously in the publisher's transaction,
@@ -37,6 +42,32 @@ public class NotificationService {
     public void onCommentAdded(TicketCommentAddedEvent event) {
         create(event.ticket(), NotificationRules.forComment(event.ticket(), event.comment()),
                 event.comment().getAuthorId(), null);
+    }
+
+    /** The caller's own notifications only. */
+    @Transactional(readOnly = true)
+    public Page<Notification> list(CurrentUser user, boolean unreadOnly, Pageable pageable) {
+        return unreadOnly
+                ? notifications.findByRecipientIdAndReadAtIsNull(user.id(), pageable)
+                : notifications.findByRecipientId(user.id(), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public long unreadCount(CurrentUser user) {
+        return notifications.countByRecipientIdAndReadAtIsNull(user.id());
+    }
+
+    /** Someone else's notification answers 404 like a missing one. */
+    @Transactional
+    public void markRead(CurrentUser user, long id) {
+        notifications.findByIdAndRecipientId(id, user.id())
+                .orElseThrow(() -> new NotFoundException("NOTIFICATION_NOT_FOUND", "Notification " + id + " not found."))
+                .markRead(clock.instant());
+    }
+
+    @Transactional
+    public int markAllRead(CurrentUser user) {
+        return notifications.markAllRead(user.id(), clock.instant());
     }
 
     void create(Ticket ticket, List<Recipient> recipients, String actorId, TicketStatus status) {
