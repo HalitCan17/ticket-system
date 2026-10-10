@@ -9,6 +9,11 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  servlet:
+    multipart:
+      # Keep in line with itsm.attachments.max-file-size and nginx client_max_body_size.
+      max-file-size: 10MB
+      max-request-size: 11MB
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -24,6 +29,10 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    # Read (and discard) oversized uploads up to this size so the client receives the 413 answer
+    # instead of a reset connection.
+    max-swallow-size: 20MB
 
 management:
   endpoints:
