@@ -1,5 +1,6 @@
 package com.itsm.backend.attachment;
 
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -10,7 +11,6 @@ import com.itsm.backend.user.UserDirectory;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -55,7 +55,7 @@ public class AttachmentController {
 
     /**
      * Always served as a download with the content type decided at upload, never inline, so an attachment
-     * cannot run in the application's origin.
+     * cannot run in the application's origin. {@code X-Content-Type-Options: nosniff} comes from Spring Security.
      */
     @GetMapping("/{attachmentId}/content")
     public ResponseEntity<Resource> download(CurrentUser user, @PathVariable long ticketId,
@@ -65,11 +65,22 @@ public class AttachmentController {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(a.getContentType()))
                 .contentLength(a.getSizeBytes())
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename(a.getOriginalName(), StandardCharsets.UTF_8).build().toString())
-                .header("X-Content-Type-Options", "nosniff")
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(a.getOriginalName()))
                 .cacheControl(CacheControl.noStore().cachePrivate())
                 .body(new InputStreamResource(content.stream()));
+    }
+
+    /**
+     * {@code attachment; filename="<ASCII fallback>"; filename*=UTF-8''<percent-encoded>} (RFC 6266). Spring's
+     * builder would RFC 2047-encode the plain {@code filename}, which some clients show literally.
+     */
+    static String contentDisposition(String fileName) {
+        StringBuilder fallback = new StringBuilder();
+        fileName.codePoints().forEach(c -> fallback.append(
+                c >= 0x20 && c < 0x7F && c != '"' && c != '\\' ? (char) c : '_'));
+        // URLEncoder is form encoding: space becomes '+', and '*' is not an RFC 5987 attr-char.
+        String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20").replace("*", "%2A");
+        return "attachment; filename=\"" + fallback + "\"; filename*=UTF-8''" + encoded;
     }
 
     @DeleteMapping("/{attachmentId}")

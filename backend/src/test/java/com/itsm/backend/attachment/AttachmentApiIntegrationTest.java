@@ -1,7 +1,6 @@
 package com.itsm.backend.attachment;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -76,9 +75,9 @@ class AttachmentApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
-                .andExpect(header().string("Content-Disposition", containsString("attachment")))
                 .andExpect(header().string("Content-Disposition",
-                        containsString("filename*=UTF-8''ekran%20g%C3%B6r%C3%BCnt%C3%BCs%C3%BC.png")))
+                        "attachment; filename=\"ekran g_r_nt_s_.png\"; "
+                                + "filename*=UTF-8''ekran%20g%C3%B6r%C3%BCnt%C3%BCs%C3%BC.png"))
                 .andReturn().getResponse().getContentAsByteArray();
         assertThat(downloaded).isEqualTo(PNG);
 
