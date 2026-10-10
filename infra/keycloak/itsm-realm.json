@@ -19,7 +19,7 @@
     {
       "clientId": "itsm-web",
       "name": "ITSM web app",
-      "description": "React SPA: Authorization Code + PKCE",
+      "description": "React SPA: Authorization Code + PKCE (5173 = npm run dev, 3000 = compose)",
       "enabled": true,
       "publicClient": true,
       "protocol": "openid-connect",
@@ -27,11 +27,11 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["http://localhost:5173/*"],
-      "webOrigins": ["http://localhost:5173"],
+      "redirectUris": ["http://localhost:5173/*", "http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:5173", "http://localhost:3000"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5173/*"
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:3000/*"
       },
       "protocolMappers": [
         {

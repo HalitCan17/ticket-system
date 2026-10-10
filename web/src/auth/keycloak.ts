@@ -53,14 +53,13 @@ export function initAuth(): Promise<Auth> {
         }
         return keycloak.token;
       },
-      logout: () => {
-        void keycloak.logout({ redirectUri: window.location.origin });
-      },
+      logout: logoutFromKeycloak,
     };
   })();
   return initialization;
 }
 
+/** Ends the Keycloak session and comes back to the app's root (matches the client's redirect pattern). */
 export function logoutFromKeycloak(): void {
-  void keycloak.logout({ redirectUri: window.location.origin });
+  void keycloak.logout({ redirectUri: `${window.location.origin}/` });
 }
