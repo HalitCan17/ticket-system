@@ -3,7 +3,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 3** — ticket çekirdeği backend API'si, Keycloak ile kimlik doğrulama (JWT), SLA ve otomatik kapanış.
+> Durum: **Aşama 4** — web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -11,32 +11,55 @@ SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (A
 | Backend | Java 21, Spring Boot 3.5, Spring Data JPA, Flyway |
 | İş akışı | Apache KIE 10.2.0 jBPM (gömülü) |
 | Veritabanı | PostgreSQL 18 |
-| Web / Mobil | React 19 + Vite / Expo (planlandı) |
+| Web | React 19, TypeScript, Vite, React Router, TanStack Query, keycloak-js |
+| Mobil | Expo (planlandı) |
 | Kimlik | Keycloak 26.8 (OIDC, JWT) |
 | Altyapı | Docker Compose |
 
 ## Hızlı başlangıç
-Gereksinimler: Docker, (geliştirme için) Java 21.
+Gereksinimler: Docker; geliştirme için Java 21 ve Node 22.22+.
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d --build
-curl http://localhost:8080/actuator/health
 ```
+
+Ardından **http://localhost:3000** adresini açıp aşağıdaki yerel kullanıcılardan biriyle giriş yapın.
 
 | Servis | Adres |
 |---|---|
+| Web uygulaması | http://localhost:3000 |
 | Backend API | http://localhost:8080 |
 | Keycloak (admin: `admin` / `admin`) | http://localhost:8081 |
 | PostgreSQL (`itsm` / `itsm`) | localhost:5432 |
 
-> Keycloak veritabanı Postgres volume'u **ilk oluşturulurken** hazırlanır. Aşama 2'den önce oluşturulmuş bir
-> volume'unuz varsa bir kez `docker compose -f infra/docker-compose.yml down -v` çalıştırın (yerel veriyi siler).
+> Keycloak realm'i (`infra/keycloak/itsm-realm.json`) yalnızca Postgres volume'u **ilk oluşturulurken** içe aktarılır.
+> Aşama 4'ten önce oluşturulmuş bir volume'unuz varsa bir kez `docker compose -f infra/docker-compose.yml down -v`
+> çalıştırın (yerel veriyi siler), aksi hâlde `localhost:3000` girişte reddedilir.
 
 Testler:
 
 ```bash
 cd backend && ./mvnw test
 ```
+
+```bash
+cd web && npm ci && npm test
+```
+
+Web'i geliştirme modunda çalıştırmak (backend ve Keycloak Compose'ta açıkken; `/api` Vite tarafından backend'e yönlendirilir):
+
+```bash
+cd web && npm run dev
+```
+
+## Web arayüzü
+- Keycloak ile giriş (Authorization Code + PKCE); üst çubukta kullanıcı, rol ve çıkış.
+- **Talepler:** durum filtresi, sayfalama, öncelik/durum/SLA rozetleri, talep eden ve atanan kişinin adı.
+- **Yeni talep:** başlık, açıklama, öncelik; backend doğrulama hataları alanların altında.
+- **Talep detayı:** yalnızca kullanıcının yapabileceği aksiyonlar (backend'in `allowedTransitions` alanı), çözüm notu ve
+  itiraz gerekçesi zorunlu, çözüm ve otomatik kapanış bildirimi, SLA bilgileri, statü geçmişi, yorumlar
+  (personel için dahili / müşteriye açık seçimi, dahili yorumlar müşteriye hiç gelmez).
+- Mimari: [ADR 0006](docs/adr/0006-web-app-architecture.md).
 
 ## Ticket akışı
 ```
@@ -143,4 +166,5 @@ curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Co
 - [ADR 0003 — Geçici dev header kimliği](docs/adr/0003-temporary-dev-header-identity.md) (yerini 0004 aldı)
 - [ADR 0004 — Keycloak ile JWT resource server](docs/adr/0004-keycloak-jwt-resource-server.md)
 - [ADR 0005 — SLA ve otomatik kapanış](docs/adr/0005-sla-and-auto-close.md)
+- [ADR 0006 — Web uygulaması mimarisi](docs/adr/0006-web-app-architecture.md)
 - [jBPM spike raporu](docs/jbpm-spike.md)
