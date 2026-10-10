@@ -25,6 +25,7 @@ import com.itsm.backend.security.Role;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class TicketWorkflowTest {
@@ -106,6 +107,17 @@ class TicketWorkflowTest {
                 .isInstanceOf(ForbiddenException.class);
         assertThatThrownBy(() -> TicketWorkflow.validate(RESOLVED, IN_PROGRESS, otherCustomer, REQUESTER_ID, "why"))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(TicketStatus.class)
+    void systemMayOnlyCloseResolvedTickets(TicketStatus from) {
+        if (from == RESOLVED) {
+            assertThatCode(() -> TicketWorkflow.validateSystemClose(from)).doesNotThrowAnyException();
+        } else {
+            assertThatThrownBy(() -> TicketWorkflow.validateSystemClose(from))
+                    .isInstanceOf(ConflictException.class);
+        }
     }
 
     @Test

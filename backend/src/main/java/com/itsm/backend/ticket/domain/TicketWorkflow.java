@@ -79,6 +79,19 @@ public final class TicketWorkflow {
         }
     }
 
+    /**
+     * The only transition the system performs on its own: RESOLVED → CLOSED when the customer
+     * did not respond in time (docs/adr/0005-sla-and-auto-close.md).
+     *
+     * @throws ConflictException if the ticket is not RESOLVED
+     */
+    public static void validateSystemClose(TicketStatus from) {
+        if (from != RESOLVED) {
+            throw new ConflictException("INVALID_STATUS_TRANSITION",
+                    "Only RESOLVED tickets can be closed automatically, not %s.".formatted(from));
+        }
+    }
+
     /** Target statuses the actor may move the ticket to from {@code from} (notes not considered). */
     public static Set<TicketStatus> allowedTargets(TicketStatus from, CurrentUser actor, String requesterId) {
         return Arrays.stream(TicketStatus.values())

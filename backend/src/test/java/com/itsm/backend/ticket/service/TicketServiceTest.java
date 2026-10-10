@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -24,6 +25,7 @@ import com.itsm.backend.ticket.domain.TicketStatusHistory;
 import com.itsm.backend.ticket.dto.TransitionRequest;
 import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
+import com.itsm.backend.ticket.sla.SlaProperties;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;
@@ -37,9 +39,11 @@ class TicketServiceTest {
 
     final TicketRepository tickets = mock(TicketRepository.class);
     final TicketStatusHistoryRepository history = mock(TicketStatusHistoryRepository.class);
-    final TicketService service = new TicketService(tickets, history, Clock.fixed(NOW, ZoneOffset.UTC));
+    final TicketService service = new TicketService(
+            tickets, history, new SlaProperties(null), Clock.fixed(NOW, ZoneOffset.UTC));
 
-    final Ticket ticket = Ticket.open("VPN", "down", TicketPriority.HIGH, "cust1", NOW.minusSeconds(3600));
+    final Ticket ticket = Ticket.open(
+            "VPN", "down", TicketPriority.HIGH, "cust1", Duration.ofHours(8), NOW.minusSeconds(3600));
 
     @Test
     void ownerAndStaffCanSeeTicket() {

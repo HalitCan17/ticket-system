@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 
@@ -34,7 +35,7 @@ class TicketCommentServiceTest {
     final TicketCommentRepository comments = mock(TicketCommentRepository.class);
     final TicketCommentService service = new TicketCommentService(ticketService, comments, Clock.fixed(NOW, ZoneOffset.UTC));
 
-    final Ticket ticket = Ticket.open("VPN", "down", TicketPriority.HIGH, "cust1", NOW);
+    final Ticket ticket = Ticket.open("VPN", "down", TicketPriority.HIGH, "cust1", Duration.ofHours(8), NOW);
 
     @Test
     void customerListsOnlyExternalComments() {

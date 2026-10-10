@@ -1,5 +1,6 @@
 package com.itsm.backend.ticket.domain;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import com.itsm.backend.security.CurrentUser;
@@ -56,6 +57,15 @@ public class Ticket {
     @Column(name = "closed_at")
     private Instant closedAt;
 
+    @Column(name = "sla_target_seconds", nullable = false)
+    private long slaTargetSeconds;
+
+    @Column(name = "sla_elapsed_seconds", nullable = false)
+    private long slaElapsedSeconds;
+
+    @Column(name = "sla_running_since")
+    private Instant slaRunningSince;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -63,7 +73,8 @@ public class Ticket {
     protected Ticket() {
     }
 
-    public static Ticket open(String title, String description, TicketPriority priority, String requesterId, Instant now) {
+    public static Ticket open(String title, String description, TicketPriority priority, String requesterId,
+            Duration slaTarget, Instant now) {
         Ticket ticket = new Ticket();
         ticket.title = title;
         ticket.description = description;
@@ -72,6 +83,7 @@ public class Ticket {
         ticket.status = TicketStatus.NEW;
         ticket.createdAt = now;
         ticket.updatedAt = now;
+        ticket.setSlaClock(SlaClock.start(slaTarget, now));
         return ticket;
     }
 
@@ -102,7 +114,44 @@ public class Ticket {
 
         status = target;
         updatedAt = now;
+        updateSlaClock(now);
         return previous;
+    }
+
+    /**
+     * Closes a RESOLVED ticket on behalf of the system (no customer response in time).
+     * Bypasses actor rules; see {@link TicketWorkflow#validateSystemClose}.
+     */
+    public void autoClose(Instant now) {
+        TicketWorkflow.validateSystemClose(status);
+        status = TicketStatus.CLOSED;
+        closedAt = now;
+        updatedAt = now;
+        updateSlaClock(now);
+    }
+
+    public SlaClock getSlaClock() {
+        return new SlaClock(Duration.ofSeconds(slaTargetSeconds), Duration.ofSeconds(slaElapsedSeconds), slaRunningSince);
+    }
+
+    public SlaState getSlaState() {
+        return switch (status) {
+            case NEW, IN_PROGRESS -> SlaState.RUNNING;
+            case WAITING_FOR_CUSTOMER -> SlaState.PAUSED;
+            case RESOLVED, CLOSED -> SlaState.STOPPED;
+        };
+    }
+
+    /** The clock runs in NEW/IN_PROGRESS and is halted in every other status. */
+    private void updateSlaClock(Instant now) {
+        SlaClock clock = getSlaClock();
+        setSlaClock(getSlaState() == SlaState.RUNNING ? clock.resume(now) : clock.halt(now));
+    }
+
+    private void setSlaClock(SlaClock clock) {
+        slaTargetSeconds = clock.target().toSeconds();
+        slaElapsedSeconds = clock.elapsedBeforeRun().toSeconds();
+        slaRunningSince = clock.runningSince();
     }
 
     public boolean isClosed() {

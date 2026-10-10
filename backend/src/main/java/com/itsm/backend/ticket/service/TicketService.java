@@ -13,6 +13,7 @@ import com.itsm.backend.ticket.dto.CreateTicketRequest;
 import com.itsm.backend.ticket.dto.TransitionRequest;
 import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
+import com.itsm.backend.ticket.sla.SlaProperties;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,19 +24,22 @@ public class TicketService {
 
     private final TicketRepository tickets;
     private final TicketStatusHistoryRepository history;
+    private final SlaProperties sla;
     private final Clock clock;
 
-    public TicketService(TicketRepository tickets, TicketStatusHistoryRepository history, Clock clock) {
+    public TicketService(TicketRepository tickets, TicketStatusHistoryRepository history, SlaProperties sla,
+            Clock clock) {
         this.tickets = tickets;
         this.history = history;
+        this.sla = sla;
         this.clock = clock;
     }
 
     @Transactional
     public Ticket create(CurrentUser user, CreateTicketRequest request) {
         Instant now = clock.instant();
-        Ticket ticket = tickets.save(Ticket.open(
-                request.title().strip(), request.description().strip(), request.priority(), user.id(), now));
+        Ticket ticket = tickets.save(Ticket.open(request.title().strip(), request.description().strip(),
+                request.priority(), user.id(), sla.targetFor(request.priority()), now));
         history.save(new TicketStatusHistory(ticket.getId(), null, TicketStatus.NEW, user.id(), null, now));
         return ticket;
     }
