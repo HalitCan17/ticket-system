@@ -9,6 +9,7 @@ import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
 import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
+import com.itsm.backend.user.UserDirectory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -25,7 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class TicketAutoCloseService {
 
-    public static final String SYSTEM_ACTOR = "system";
+    public static final String SYSTEM_ACTOR = UserDirectory.SYSTEM_USER_ID;
 
     private static final Logger log = LoggerFactory.getLogger(TicketAutoCloseService.class);
     private static final int BATCH_SIZE = 100;

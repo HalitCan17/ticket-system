@@ -2,6 +2,8 @@ package com.itsm.backend.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.Map;
@@ -9,6 +11,8 @@ import java.util.Map;
 import com.itsm.backend.common.error.ApiException;
 import com.itsm.backend.common.error.ForbiddenException;
 import com.itsm.backend.common.error.UnauthorizedException;
+import com.itsm.backend.user.UserDirectory;
+import com.itsm.backend.user.UserProfile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.TestingAuthenticationToken;
@@ -18,7 +22,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 class JwtCurrentUserProviderTest {
 
-    final JwtCurrentUserProvider provider = new JwtCurrentUserProvider();
+    final UserDirectory userDirectory = mock(UserDirectory.class);
+    final JwtCurrentUserProvider provider = new JwtCurrentUserProvider(userDirectory);
 
     @AfterEach
     void clearContext() {
@@ -30,6 +35,21 @@ class JwtCurrentUserProviderTest {
         authenticate(jwt("user-1", List.of("CUSTOMER", "default-roles-itsm")));
 
         assertThat(provider.resolve()).isEqualTo(new CurrentUser("user-1", Role.CUSTOMER));
+    }
+
+    @Test
+    void recordsNameClaimsInDirectory() {
+        Jwt token = Jwt.withTokenValue("t").header("alg", "none").subject("user-9")
+                .claim("preferred_username", "customer9")
+                .claim("name", "Customer Nine")
+                .claim("email", "c9@itsm.local")
+                .claim("realm_access", Map.of("roles", List.of("CUSTOMER")))
+                .build();
+        authenticate(token);
+
+        provider.resolve();
+
+        verify(userDirectory).remember(new UserProfile("user-9", "customer9", "Customer Nine", "c9@itsm.local"));
     }
 
     @Test

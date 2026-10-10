@@ -6,6 +6,8 @@ import java.util.Map;
 
 import com.itsm.backend.common.error.ForbiddenException;
 import com.itsm.backend.common.error.UnauthorizedException;
+import com.itsm.backend.user.UserDirectory;
+import com.itsm.backend.user.UserProfile;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
  * Maps a validated Keycloak access token to a {@link CurrentUser}:
  * {@code id} is the token subject, {@code role} the most privileged application role found in
  * {@code realm_access.roles} (MANAGER > AGENT > CUSTOMER). See docs/adr/0004-keycloak-jwt-resource-server.md.
+ * Name claims are recorded in the {@link UserDirectory} so ticket data can be shown with names.
  */
 @Component
 public class JwtCurrentUserProvider implements CurrentUserProvider {
@@ -23,13 +26,23 @@ public class JwtCurrentUserProvider implements CurrentUserProvider {
     /** Most privileged first. */
     private static final List<Role> PRECEDENCE = List.of(Role.MANAGER, Role.AGENT, Role.CUSTOMER);
 
+    private final UserDirectory userDirectory;
+
+    public JwtCurrentUserProvider(UserDirectory userDirectory) {
+        this.userDirectory = userDirectory;
+    }
+
     @Override
     public CurrentUser resolve() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (!(authentication instanceof JwtAuthenticationToken token)) {
             throw new UnauthorizedException("A valid bearer token is required.");
         }
-        return fromJwt(token.getToken());
+        Jwt jwt = token.getToken();
+        CurrentUser user = fromJwt(jwt);
+        userDirectory.remember(new UserProfile(user.id(), jwt.getClaimAsString("preferred_username"),
+                jwt.getClaimAsString("name"), jwt.getClaimAsString("email")));
+        return user;
     }
 
     static CurrentUser fromJwt(Jwt jwt) {

@@ -102,6 +102,7 @@ class TicketApiIntegrationTest {
                 .andExpect(jsonPath("$[4].toStatus").value("RESOLVED"))
                 .andExpect(jsonPath("$[4].note").value("Reset the VPN profile"))
                 .andExpect(jsonPath("$[5].changedBy").value(customer))
+                .andExpect(jsonPath("$[5].changedByName").value(TestTokens.displayName(customer)))
                 .andExpect(jsonPath("$[5].note").value("Still cannot connect"))
                 .andExpect(jsonPath("$[7].toStatus").value("CLOSED"));
     }
@@ -148,6 +149,8 @@ class TicketApiIntegrationTest {
                 .andExpect(jsonPath("$.title").value("Printer"))
                 .andExpect(jsonPath("$.status").value("NEW"))
                 .andExpect(jsonPath("$.requesterId").value(customer))
+                .andExpect(jsonPath("$.requesterName").value(TestTokens.displayName(customer)))
+                .andExpect(jsonPath("$.assigneeName").doesNotExist())
                 .andExpect(jsonPath("$.createdAt").isString());
     }
 

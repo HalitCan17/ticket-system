@@ -43,6 +43,7 @@ class TicketCommentApiIntegrationTest {
         comment(id, "agent1", "AGENT", "Which OS are you on?", "EXTERNAL")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.authorId").value("agent1"))
+                .andExpect(jsonPath("$.authorName").value(TestTokens.displayName("agent1")))
                 .andExpect(jsonPath("$.visibility").value("EXTERNAL"))
                 .andExpect(jsonPath("$.id").isNumber());
         comment(id, customer, "CUSTOMER", "Windows 11", "EXTERNAL").andExpect(status().isCreated());

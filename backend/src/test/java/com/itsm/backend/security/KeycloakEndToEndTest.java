@@ -83,6 +83,7 @@ class KeycloakEndToEndTest {
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         JsonNode ticket = json.readTree(created.getBody());
         assertThat(ticket.get("requesterId").asText()).isEqualTo(subjectOf(customer1));
+        assertThat(ticket.get("requesterName").asText()).isEqualTo("Customer One"); // from the realm's user
         long id = ticket.get("id").asLong();
 
         ResponseEntity<String> started = call(HttpMethod.POST, "/api/tickets/" + id + "/transitions", agent1,

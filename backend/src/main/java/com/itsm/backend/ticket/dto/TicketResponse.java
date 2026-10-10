@@ -9,6 +9,7 @@ import com.itsm.backend.ticket.domain.TicketStatus;
 /**
  * Built by {@link com.itsm.backend.ticket.service.TicketResponseAssembler}.
  *
+ * @param requesterName      display name from the user directory; null if unknown
  * @param allowedTransitions statuses the caller may move this ticket to; lets clients show only valid actions
  * @param sla                resolution-time SLA as of the response time
  * @param autoCloseAt        when a RESOLVED ticket will be closed automatically; null in other statuses
@@ -20,7 +21,9 @@ public record TicketResponse(
         TicketStatus status,
         TicketPriority priority,
         String requesterId,
+        String requesterName,
         String assigneeId,
+        String assigneeName,
         String resolutionNote,
         Instant createdAt,
         Instant updatedAt,

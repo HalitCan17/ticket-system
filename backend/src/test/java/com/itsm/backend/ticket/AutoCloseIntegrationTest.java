@@ -74,6 +74,7 @@ class AutoCloseIntegrationTest {
         assertThat(last.get("fromStatus").asText()).isEqualTo("RESOLVED");
         assertThat(last.get("toStatus").asText()).isEqualTo("CLOSED");
         assertThat(last.get("changedBy").asText()).isEqualTo(TicketAutoCloseService.SYSTEM_ACTOR);
+        assertThat(last.get("changedByName").asText()).isEqualTo("System");
         assertThat(last.get("note").asText()).isEqualTo("Auto-closed: no customer response for 7d");
     }
 
