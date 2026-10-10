@@ -6,7 +6,9 @@ import { ApiError, createApiClient } from './api/client.ts';
 import { ticketsApi } from './api/tickets.ts';
 import { useAuth } from './auth/AuthContext.tsx';
 import { Layout } from './components/Layout.tsx';
+import { NewTicketPage } from './pages/NewTicketPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
+import { TicketDetailPage } from './pages/TicketDetailPage.tsx';
 import { TicketListPage } from './pages/TicketListPage.tsx';
 
 export const routes: RouteObject[] = [
@@ -16,6 +18,8 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="/tickets" replace /> },
       { path: 'tickets', element: <TicketListPage /> },
+      { path: 'tickets/new', element: <NewTicketPage /> },
+      { path: 'tickets/:id', element: <TicketDetailPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
