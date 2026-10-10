@@ -1,0 +1,21 @@
+.actions {
+  margin: var(--space-4) 0;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.noteForm {
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.noteForm textarea {
+  margin-bottom: var(--space-3);
+}
