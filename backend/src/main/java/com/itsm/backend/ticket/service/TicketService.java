@@ -15,6 +15,8 @@ import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
 import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
 import com.itsm.backend.ticket.sla.SlaProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TicketService {
+
+    private static final Logger log = LoggerFactory.getLogger(TicketService.class);
 
     private final TicketRepository tickets;
     private final TicketStatusHistoryRepository history;
@@ -45,6 +49,7 @@ public class TicketService {
         Ticket ticket = tickets.save(Ticket.open(request.title().strip(), request.description().strip(),
                 request.priority(), user.id(), sla.targetFor(request.priority()), now));
         history.save(new TicketStatusHistory(ticket.getId(), null, TicketStatus.NEW, user.id(), null, now));
+        log.info("Ticket {} created by {} with priority {}", ticket.getId(), user.id(), ticket.getPriority());
         return ticket;
     }
 
@@ -73,6 +78,7 @@ public class TicketService {
         TicketStatus previous = ticket.transitionTo(request.targetStatus(), user, note, now);
         history.save(new TicketStatusHistory(ticket.getId(), previous, ticket.getStatus(), user.id(), note, now));
         events.publishEvent(new TicketStatusChangedEvent(ticket, previous, ticket.getStatus(), user.id()));
+        log.info("Ticket {} moved {} -> {} by {}", ticket.getId(), previous, ticket.getStatus(), user.id());
         return ticket;
     }
 

@@ -1,3 +1,10 @@
 spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://postgres:5432/itsm}
+
+logging:
+  structured:
+    # One JSON object per line (Elastic Common Schema); MDC values such as the OpenTelemetry
+    # trace_id / span_id become fields. Local runs keep the readable text format.
+    format:
+      console: ecs

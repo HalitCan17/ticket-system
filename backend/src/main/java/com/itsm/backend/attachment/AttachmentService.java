@@ -15,6 +15,8 @@ import com.itsm.backend.security.Role;
 import com.itsm.backend.ticket.domain.CommentVisibility;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.service.TicketService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,8 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Service
 public class AttachmentService {
+
+    private static final Logger log = LoggerFactory.getLogger(AttachmentService.class);
 
     /** An attachment together with whether the caller may delete it. */
     public record AttachmentView(TicketAttachment attachment, boolean canDelete) {
@@ -89,6 +93,9 @@ public class AttachmentService {
         TicketAttachment attachment = attachments.save(new TicketAttachment(ticket.getId(), user.id(), visibility,
                 accepted.fileName(), accepted.contentType(), stored, clock.instant()));
         events.publishEvent(new TicketAttachmentAddedEvent(ticket, attachment));
+        // No file name: it is user content.
+        log.info("Attachment {} ({} bytes, {}) added to ticket {} by {}", attachment.getId(),
+                attachment.getSizeBytes(), visibility, ticket.getId(), user.id());
         return new AttachmentView(attachment, canDelete(user, ticket, attachment));
     }
 
@@ -117,6 +124,7 @@ public class AttachmentService {
         attachments.delete(attachment);
         // Row first, file after commit: at worst an orphan file remains, never a row without content.
         afterCompletion(attachment.getStorageKey(), true);
+        log.info("Attachment {} of ticket {} deleted by {}", attachment.getId(), ticket.getId(), user.id());
     }
 
     /** Call only after the ticket itself was checked with {@link TicketService#getVisibleTicket}. */
