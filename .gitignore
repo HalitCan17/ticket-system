@@ -25,3 +25,8 @@ Thumbs.db
 
 # Local attachment storage when running the backend outside Docker
 backend/data/
+
+# Playwright output and saved test sessions
+web/test-results/
+web/playwright-report/
+web/e2e/.auth/
