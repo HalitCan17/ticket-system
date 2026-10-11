@@ -3,7 +3,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 6** — ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
+> Durum: **Aşama 7** — Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -45,6 +45,20 @@ cd backend && ./mvnw test
 ```bash
 cd web && npm ci && npm test
 ```
+
+### Uçtan uca testler (Playwright)
+`web/e2e/` altındaki testler gerçek bir tarayıcıyla çalışan Compose yığınını (`http://localhost:3000`) kullanır. Kapsadıkları:
+Keycloak girişi, müşterinin başkasının talebini görememesi, talebin tüm yaşam döngüsü (itiraz dahil), dahili yorum gizliliği,
+bildirim, ek yükleme/indirme/silme. Yığını kendileri başlatmazlar.
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --build
+cd web && npx playwright install chromium && npm run e2e
+```
+
+- Kurulu Chrome ile (Chromium indirmeden): `E2E_BROWSER_CHANNEL=chrome npm run e2e`
+- Başka adres: `E2E_BASE_URL=http://localhost:3000`. Görsel mod: `npm run e2e -- --ui`. Hata raporu: `npx playwright show-report`.
+- Testler `customer1`, `customer2`, `agent1` kullanıcılarıyla benzersiz başlıklı talepler açar; veritabanında `E2E …` talepleri birikir.
 
 Web'i geliştirme modunda çalıştırmak (backend ve Keycloak Compose'ta açıkken; `/api` Vite tarafından backend'e yönlendirilir):
 
