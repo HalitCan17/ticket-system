@@ -56,3 +56,45 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  e2e:
+    name: End-to-end tests
+    # Pushes to main only, after the faster jobs pass.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7.0.1
+      # The observability services (OpenSearch etc.) are not needed here; the backend works without them.
+      - name: Start the stack
+        run: docker compose -f infra/docker-compose.yml up -d --build --wait postgres keycloak backend web
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "24.21.0"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies and Chromium
+        working-directory: web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run Playwright
+        working-directory: web
+        run: npm run e2e
+      - name: Collect container logs
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml logs --no-color > compose-logs.txt
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: e2e-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+            compose-logs.txt
+          retention-days: 7
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v
