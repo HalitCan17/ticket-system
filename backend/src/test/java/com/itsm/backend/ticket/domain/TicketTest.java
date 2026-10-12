@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import com.itsm.backend.common.error.ApiException;
+import com.itsm.backend.common.error.BadRequestException;
 import com.itsm.backend.common.error.ConflictException;
 import com.itsm.backend.common.error.ForbiddenException;
 import com.itsm.backend.security.CurrentUser;
@@ -158,6 +159,88 @@ class TicketTest {
                 .isInstanceOf(ForbiddenException.class)
                 .extracting(e -> ((ApiException) e).getCode()).isEqualTo("RATING_NOT_ALLOWED");
         assertThat(resolved.getRating()).isNull();
+    }
+
+    @Test
+    void slaDueAtFollowsTheClock() {
+        Ticket ticket = newTicket(); // HIGH, 8 h, running since T0
+        assertThat(ticket.getSlaDueAt()).isEqualTo(T0.plus(Duration.ofHours(8)));
+
+        ticket.transitionTo(TicketStatus.IN_PROGRESS, AGENT, null, T0.plusSeconds(3600));
+        ticket.transitionTo(TicketStatus.WAITING_FOR_CUSTOMER, AGENT, null, T0.plusSeconds(7200));
+        assertThat(ticket.getSlaDueAt()).isNull(); // paused
+
+        ticket.transitionTo(TicketStatus.IN_PROGRESS, AGENT, null, T0.plusSeconds(10_800));
+        // 2 h used, 6 h left from the resume
+        assertThat(ticket.getSlaDueAt()).isEqualTo(T0.plusSeconds(10_800).plus(Duration.ofHours(6)));
+    }
+
+    @Test
+    void priorityChangeKeepsUsedTimeAndMovesTheDeadline() {
+        Ticket ticket = newTicket(); // HIGH, 8 h
+        Instant now = T0.plus(Duration.ofHours(5));
+
+        TicketPriority previous = ticket.changePriority(TicketPriority.CRITICAL, Duration.ofHours(4), "Üretim durdu",
+                AGENT, now);
+
+        assertThat(previous).isEqualTo(TicketPriority.HIGH);
+        assertThat(ticket.getPriority()).isEqualTo(TicketPriority.CRITICAL);
+        assertThat(ticket.getSlaClock().target()).isEqualTo(Duration.ofHours(4));
+        assertThat(ticket.getSlaClock().isBreached(now)).isTrue(); // 5 h used of 4 h
+        assertThat(ticket.getSlaDueAt()).isEqualTo(T0.plus(Duration.ofHours(4)));
+    }
+
+    @Test
+    void loweringThePriorityClearsTheBreachMarkSoALaterBreachIsNotified() {
+        Ticket ticket = newTicket(); // HIGH, 8 h
+        Instant now = T0.plus(Duration.ofHours(9));
+        ticket.markSlaBreachNotified(now);
+
+        ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), "Bekleyebilir", AGENT, now);
+
+        assertThat(ticket.getSlaClock().isBreached(now)).isFalse();
+        assertThat(ticket.getSlaBreachNotifiedAt()).isNull();
+    }
+
+    @Test
+    void priorityChangeNeedsStaffAReasonAndAnUnresolvedTicket() {
+        Ticket ticket = newTicket();
+        assertThatThrownBy(() -> ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), "x", CUSTOMER, T0))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), " ", AGENT, T0))
+                .isInstanceOf(BadRequestException.class)
+                .extracting(e -> ((ApiException) e).getCode()).isEqualTo("PRIORITY_REASON_REQUIRED");
+
+        Ticket resolved = resolvedTicket();
+        assertThatThrownBy(() -> resolved.changePriority(TicketPriority.LOW, Duration.ofHours(72), "x", AGENT, T0))
+                .isInstanceOf(ConflictException.class)
+                .extracting(e -> ((ApiException) e).getCode()).isEqualTo("PRIORITY_LOCKED");
+        // The category may still change on a resolved ticket.
+        resolved.changeCategory(TicketCategory.NETWORK, AGENT, T0);
+        assertThat(resolved.getCategory()).isEqualTo(TicketCategory.NETWORK);
+    }
+
+    @Test
+    void closedTicketCannotBeReassignedOrEdited() {
+        Ticket ticket = newTicket();
+        ticket.transitionTo(TicketStatus.CLOSED, CUSTOMER, null, T0); // withdrawn
+
+        assertThatThrownBy(() -> ticket.assignTo("agent1", true, AGENT, T0))
+                .isInstanceOf(ConflictException.class)
+                .extracting(e -> ((ApiException) e).getCode()).isEqualTo("TICKET_CLOSED");
+        assertThatThrownBy(() -> ticket.changeCategory(TicketCategory.NETWORK, AGENT, T0))
+                .isInstanceOf(ConflictException.class);
+        assertThat(ticket.canBeEditedBy(AGENT)).isFalse();
+    }
+
+    @Test
+    void assignToReturnsThePreviousAssignee() {
+        Ticket ticket = newTicket();
+
+        assertThat(ticket.assignTo("agent1", true, AGENT, T0)).isNull();
+        assertThat(ticket.assignTo("agent2", true, AGENT, T0.plusSeconds(1))).isEqualTo("agent1");
+        assertThat(ticket.getAssigneeId()).isEqualTo("agent2");
+        assertThat(ticket.getUpdatedAt()).isEqualTo(T0.plusSeconds(1));
     }
 
     private static Ticket resolvedTicket() {

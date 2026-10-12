@@ -3,6 +3,7 @@ package com.itsm.backend.ticket.domain;
 import java.time.Duration;
 import java.time.Instant;
 
+import com.itsm.backend.common.error.BadRequestException;
 import com.itsm.backend.common.error.ConflictException;
 import com.itsm.backend.common.error.ForbiddenException;
 import com.itsm.backend.security.CurrentUser;
@@ -74,6 +75,10 @@ public class Ticket {
 
     @Column(name = "sla_breach_notified_at")
     private Instant slaBreachNotifiedAt;
+
+    /** Derived from the SLA clock (see {@link SlaClock#scheduledDueAt}); only for ordering the work queue. */
+    @Column(name = "sla_due_at")
+    private Instant slaDueAt;
 
     /** Requester's satisfaction score 1–5; null until rated. */
     @Column
@@ -151,6 +156,78 @@ public class Ticket {
     }
 
     /**
+     * Changes the assignee following {@link TicketAssignment}.
+     *
+     * @return the previous assignee id (null if there was none)
+     * @throws ConflictException if the ticket is closed ({@code TICKET_CLOSED})
+     */
+    public String assignTo(String newAssigneeId, boolean newAssigneeIsStaff, CurrentUser actor, Instant now) {
+        if (isClosed()) {
+            throw new ConflictException("TICKET_CLOSED", "The assignee of a closed ticket cannot change.");
+        }
+        TicketAssignment.validate(actor, assigneeId, newAssigneeId, newAssigneeIsStaff);
+        String previous = assigneeId;
+        assigneeId = newAssigneeId;
+        updatedAt = now;
+        return previous;
+    }
+
+    /** Staff may change priority and category while the ticket is not closed. */
+    public boolean canBeEditedBy(CurrentUser actor) {
+        return actor.isStaff() && !isClosed();
+    }
+
+    /**
+     * Changes the priority and measures the SLA against the new priority's target; the time used so far is kept.
+     * If the ticket is no longer breached, a later breach is notified again.
+     *
+     * @return the previous priority
+     * @throws ForbiddenException  for customers ({@code TICKET_EDIT_NOT_ALLOWED})
+     * @throws ConflictException   when closed ({@code TICKET_CLOSED}) or resolved ({@code PRIORITY_LOCKED}: SLA stopped)
+     * @throws BadRequestException without a reason ({@code PRIORITY_REASON_REQUIRED})
+     */
+    public TicketPriority changePriority(TicketPriority newPriority, Duration newSlaTarget, String reason,
+            CurrentUser actor, Instant now) {
+        checkEditable(actor);
+        if (status == TicketStatus.RESOLVED) {
+            throw new ConflictException("PRIORITY_LOCKED", "The priority of a resolved ticket cannot change.");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new BadRequestException("PRIORITY_REASON_REQUIRED", "A reason is required to change the priority.");
+        }
+        TicketPriority previous = priority;
+        priority = newPriority;
+        SlaClock clock = getSlaClock().withTarget(newSlaTarget);
+        setSlaClock(clock);
+        if (!clock.isBreached(now)) {
+            slaBreachNotifiedAt = null;
+        }
+        updatedAt = now;
+        return previous;
+    }
+
+    /**
+     * @return the previous category
+     * @throws ForbiddenException for customers; {@link ConflictException} when closed
+     */
+    public TicketCategory changeCategory(TicketCategory newCategory, CurrentUser actor, Instant now) {
+        checkEditable(actor);
+        TicketCategory previous = category;
+        category = newCategory;
+        updatedAt = now;
+        return previous;
+    }
+
+    private void checkEditable(CurrentUser actor) {
+        if (!actor.isStaff()) {
+            throw new ForbiddenException("TICKET_EDIT_NOT_ALLOWED", "Only staff can change a ticket's details.");
+        }
+        if (isClosed()) {
+            throw new ConflictException("TICKET_CLOSED", "A closed ticket cannot be changed.");
+        }
+    }
+
+    /**
      * Whether {@code user} may rate this ticket now: only the requester, only once, and only a ticket that
      * was actually resolved (RESOLVED, or CLOSED after a resolution — a withdrawn ticket has no resolution).
      */
@@ -191,6 +268,10 @@ public class Ticket {
         slaBreachNotifiedAt = now;
     }
 
+    public Instant getSlaDueAt() {
+        return slaDueAt;
+    }
+
     public Instant getSlaBreachNotifiedAt() {
         return slaBreachNotifiedAt;
     }
@@ -217,6 +298,7 @@ public class Ticket {
         slaTargetSeconds = clock.target().toSeconds();
         slaElapsedSeconds = clock.elapsedBeforeRun().toSeconds();
         slaRunningSince = clock.runningSince();
+        slaDueAt = clock.scheduledDueAt();
     }
 
     public boolean isClosed() {

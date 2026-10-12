@@ -14,5 +14,11 @@ public enum NotificationType {
     /** A file was attached; internal attachments are reported to staff only. */
     ATTACHMENT_ADDED,
     /** The requester rated the resolution (score in the ticket). */
-    TICKET_RATED
+    TICKET_RATED,
+    /** The ticket was assigned to the recipient. */
+    TICKET_ASSIGNED,
+    /** The ticket was taken away from the recipient (reassigned or unassigned). */
+    TICKET_UNASSIGNED,
+    /** Staff changed the priority of the recipient's ticket. */
+    PRIORITY_CHANGED
 }

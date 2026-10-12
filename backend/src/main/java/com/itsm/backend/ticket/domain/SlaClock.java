@@ -62,6 +62,19 @@ public record SlaClock(Duration target, Duration elapsedBeforeRun, Instant runni
         return isRunning() ? now.plus(remaining(now)) : null;
     }
 
+    /** Same clock measured against another target (priority change); the time used so far is kept. */
+    public SlaClock withTarget(Duration newTarget) {
+        return new SlaClock(newTarget, elapsedBeforeRun, runningSince);
+    }
+
+    /**
+     * Moment the target is reached if the clock keeps running, independent of "now" (it only changes
+     * when the clock changes); null while not running. Stored so the work queue can sort by it.
+     */
+    public Instant scheduledDueAt() {
+        return isRunning() ? runningSince.plus(target.minus(elapsedBeforeRun)) : null;
+    }
+
     /** Breached once more time was used than allowed; hitting the target exactly is still within SLA. */
     public boolean isBreached(Instant now) {
         return elapsed(now).compareTo(target) > 0;

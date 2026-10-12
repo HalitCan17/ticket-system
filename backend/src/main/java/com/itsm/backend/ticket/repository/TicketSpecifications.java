@@ -20,7 +20,8 @@ public final class TicketSpecifications {
     }
 
     /**
-     * @param requesterId when not null, only this requester's tickets (customers); staff pass null
+     * @param requesterId when not null, only this requester's tickets (customers); staff pass null.
+     *                    Assignee filters apply to staff only.
      */
     public static Specification<Ticket> matching(TicketSearch search, String requesterId) {
         return (root, query, cb) -> {
@@ -38,6 +39,25 @@ public final class TicketSpecifications {
             }
             if (search.category() != null) {
                 where.add(cb.equal(root.get("category"), search.category()));
+            }
+            if (requesterId == null && search.assigneeId() != null) {
+                where.add(cb.equal(root.get("assigneeId"), search.assigneeId()));
+            }
+            if (requesterId == null && search.unassigned()) {
+                where.add(cb.isNull(root.get("assigneeId")));
+            }
+            if (search.sortBySla() && query.getResultType() != Long.class && query.getResultType() != long.class) {
+                // Most urgent first: tickets still being worked on, running clocks by due time, then paused clocks
+                // by remaining time, then resolved/closed ones. Not applied to the count query.
+                var finished = cb.selectCase()
+                        .when(root.get("status").in(TicketStatus.RESOLVED, TicketStatus.CLOSED), 1).otherwise(0);
+                var notRunning = cb.selectCase().when(cb.isNull(root.get("slaDueAt")), 1).otherwise(0);
+                query.orderBy(
+                        cb.asc(finished),
+                        cb.asc(notRunning),
+                        cb.asc(root.get("slaDueAt")),
+                        cb.asc(cb.diff(root.<Long>get("slaTargetSeconds"), root.<Long>get("slaElapsedSeconds"))),
+                        cb.asc(root.get("id")));
             }
             String text = search.text() == null ? "" : search.text().strip();
             if (!text.isEmpty()) {

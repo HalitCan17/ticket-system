@@ -81,6 +81,24 @@ public class UserDirectory {
                 new MapSqlParameterSource(), String.class);
     }
 
+    /** Known agents and managers, by name. Only users who signed in at least once are listed. */
+    public List<StaffMember> staffMembers() {
+        return jdbc.query("""
+                select id, coalesce(display_name, username, id) as name, role from app_users
+                where role in ('AGENT', 'MANAGER')
+                order by lower(coalesce(display_name, username, id)), id""",
+                new MapSqlParameterSource(),
+                (rs, i) -> new StaffMember(rs.getString("id"), rs.getString("name"), rs.getString("role")));
+    }
+
+    /** Whether the id belongs to a known agent or manager. */
+    public boolean isStaff(String id) {
+        Integer count = jdbc.queryForObject(
+                "select count(*) from app_users where id = :id and role in ('AGENT', 'MANAGER')",
+                new MapSqlParameterSource("id", id), Integer.class);
+        return count != null && count > 0;
+    }
+
     /** Display name (or username) per known id; unknown ids are absent from the result. */
     public Map<String, String> displayNames(Collection<String> ids) {
         Set<String> wanted = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());

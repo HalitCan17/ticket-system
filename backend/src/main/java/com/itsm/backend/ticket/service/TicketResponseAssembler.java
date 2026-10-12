@@ -9,6 +9,7 @@ import java.util.Map;
 import com.itsm.backend.common.web.PageResponse;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
+import com.itsm.backend.ticket.domain.TicketAssignment;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketWorkflow;
 import com.itsm.backend.ticket.dto.RatingResponse;
@@ -67,7 +68,10 @@ public class TicketResponseAssembler {
                 SlaResponse.of(ticket.getSlaState(), ticket.getSlaClock(), now),
                 autoCloseAt,
                 RatingResponse.of(ticket),
-                ticket.canBeRatedBy(viewer));
+                ticket.canBeRatedBy(viewer),
+                !ticket.isClosed() && TicketAssignment.canClaim(viewer, ticket.getAssigneeId()),
+                !ticket.isClosed() && TicketAssignment.canReassign(viewer, ticket.getAssigneeId()),
+                ticket.canBeEditedBy(viewer));
     }
 
     private static List<String> userIds(List<Ticket> tickets) {

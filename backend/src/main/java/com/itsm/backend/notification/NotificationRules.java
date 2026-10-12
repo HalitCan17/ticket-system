@@ -1,5 +1,6 @@
 package com.itsm.backend.notification;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -62,6 +63,24 @@ public final class NotificationRules {
     /** A rating goes to the assignee who resolved the ticket (never to the requester who rated). */
     public static List<Recipient> forRating(Ticket ticket, String actorId) {
         return recipients(NotificationType.TICKET_RATED, actorId, ticket.getAssigneeId());
+    }
+
+    /**
+     * The new assignee is told the ticket is theirs; the previous assignee that it no longer is.
+     * Nobody is notified about their own action (e.g. claiming a ticket).
+     */
+    public static List<Recipient> forAssigneeChange(Ticket ticket, String previousAssigneeId, String actorId) {
+        List<Recipient> result = new ArrayList<>(
+                recipients(NotificationType.TICKET_ASSIGNED, actorId, ticket.getAssigneeId()));
+        if (!Objects.equals(previousAssigneeId, ticket.getAssigneeId())) {
+            result.addAll(recipients(NotificationType.TICKET_UNASSIGNED, actorId, previousAssigneeId));
+        }
+        return result;
+    }
+
+    /** A priority change goes to the assignee (the SLA they work against changed). */
+    public static List<Recipient> forPriorityChange(Ticket ticket, String actorId) {
+        return recipients(NotificationType.PRIORITY_CHANGED, actorId, ticket.getAssigneeId());
     }
 
     /** SLA breaches go to the assignee (if any) and every manager. */

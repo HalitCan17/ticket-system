@@ -12,6 +12,8 @@ import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.event.TicketCommentAddedEvent;
+import com.itsm.backend.ticket.event.TicketAssigneeChangedEvent;
+import com.itsm.backend.ticket.event.TicketPriorityChangedEvent;
 import com.itsm.backend.ticket.event.TicketRatedEvent;
 import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
 import com.itsm.backend.user.UserDirectory;
@@ -60,6 +62,17 @@ public class NotificationService {
     @EventListener
     public void onRated(TicketRatedEvent event) {
         create(event.ticket(), NotificationRules.forRating(event.ticket(), event.actorId()), event.actorId(), null);
+    }
+
+    @EventListener
+    public void onAssigneeChanged(TicketAssigneeChangedEvent event) {
+        create(event.ticket(), NotificationRules.forAssigneeChange(event.ticket(), event.previousAssigneeId(),
+                event.actorId()), event.actorId(), null);
+    }
+
+    @EventListener
+    public void onPriorityChanged(TicketPriorityChangedEvent event) {
+        create(event.ticket(), NotificationRules.forPriorityChange(event.ticket(), event.actorId()), event.actorId(), null);
     }
 
     /** Notifies the assignee and all known managers that the ticket exceeded its SLA. */

@@ -1,21 +1,28 @@
 package com.itsm.backend.ticket.controller;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import com.itsm.backend.common.web.PageResponse;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
+import com.itsm.backend.ticket.domain.TicketActivity;
+import com.itsm.backend.ticket.domain.TicketActivityType;
 import com.itsm.backend.ticket.domain.TicketCategory;
 import com.itsm.backend.ticket.domain.TicketScope;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
+import com.itsm.backend.ticket.dto.ActivityResponse;
+import com.itsm.backend.ticket.dto.AssignTicketRequest;
 import com.itsm.backend.ticket.dto.CreateTicketRequest;
 import com.itsm.backend.ticket.dto.RateTicketRequest;
 import com.itsm.backend.ticket.dto.StatusHistoryResponse;
 import com.itsm.backend.ticket.dto.TicketResponse;
 import com.itsm.backend.ticket.dto.TransitionRequest;
+import com.itsm.backend.ticket.dto.UpdateTicketRequest;
+import com.itsm.backend.ticket.service.TicketManagementService;
 import com.itsm.backend.ticket.service.TicketResponseAssembler;
 import com.itsm.backend.ticket.service.TicketSearch;
 import com.itsm.backend.ticket.service.TicketService;
@@ -28,8 +35,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -43,12 +52,14 @@ public class TicketController {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
 
     private final TicketService ticketService;
+    private final TicketManagementService management;
     private final TicketResponseAssembler responses;
     private final UserDirectory userDirectory;
 
-    public TicketController(TicketService ticketService, TicketResponseAssembler responses,
-            UserDirectory userDirectory) {
+    public TicketController(TicketService ticketService, TicketManagementService management,
+            TicketResponseAssembler responses, UserDirectory userDirectory) {
         this.ticketService = ticketService;
+        this.management = management;
         this.responses = responses;
         this.userDirectory = userDirectory;
     }
@@ -68,10 +79,23 @@ public class TicketController {
             @RequestParam(required = false) TicketScope scope,
             @RequestParam(required = false) TicketCategory category,
             @RequestParam(required = false) @Size(max = 200) String q,
+            @RequestParam(required = false) @Size(max = 64) String assignee,
+            @RequestParam(required = false) TicketSort sort,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        TicketSearch search = new TicketSearch(q, scope, status, category);
-        return responses.toPage(ticketService.list(user, search, PageRequest.of(page, size, NEWEST_FIRST)), user);
+        // assignee: "me", "unassigned" or a user id (staff work queue)
+        boolean unassigned = "unassigned".equalsIgnoreCase(assignee);
+        String assigneeId = assignee == null || assignee.isBlank() || unassigned ? null
+                : "me".equalsIgnoreCase(assignee) ? user.id() : assignee;
+        boolean bySla = sort == TicketSort.SLA;
+        TicketSearch search = new TicketSearch(q, scope, status, category, assigneeId, unassigned, bySla);
+        PageRequest pageable = bySla ? PageRequest.of(page, size) : PageRequest.of(page, size, NEWEST_FIRST);
+        return responses.toPage(ticketService.list(user, search, pageable), user);
+    }
+
+    /** List order: newest first (default) or most urgent SLA first. */
+    public enum TicketSort {
+        NEWEST, SLA
     }
 
     @GetMapping("/{id}")
@@ -83,6 +107,33 @@ public class TicketController {
     public TicketResponse transition(CurrentUser user, @PathVariable long id,
             @Valid @RequestBody TransitionRequest request) {
         return responses.toResponse(ticketService.transition(user, id, request), user);
+    }
+
+    @PutMapping("/{id}/assignee")
+    public TicketResponse assign(CurrentUser user, @PathVariable long id,
+            @Valid @RequestBody AssignTicketRequest request) {
+        return responses.toResponse(management.assign(user, id, request.assigneeId()), user);
+    }
+
+    @PatchMapping("/{id}")
+    public TicketResponse update(CurrentUser user, @PathVariable long id,
+            @Valid @RequestBody UpdateTicketRequest request) {
+        return responses.toResponse(management.update(user, id, request), user);
+    }
+
+    @GetMapping("/{id}/activities")
+    public List<ActivityResponse> activities(CurrentUser user, @PathVariable long id) {
+        List<TicketActivity> entries = management.activities(user, id);
+        List<String> ids = new ArrayList<>();
+        for (TicketActivity entry : entries) {
+            ids.add(entry.getActorId());
+            if (entry.getType() == TicketActivityType.ASSIGNEE_CHANGED) {
+                ids.add(entry.getOldValue());
+                ids.add(entry.getNewValue());
+            }
+        }
+        Map<String, String> names = userDirectory.displayNames(ids);
+        return entries.stream().map(entry -> ActivityResponse.from(entry, names)).toList();
     }
 
     @PostMapping("/{id}/rating")

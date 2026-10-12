@@ -16,6 +16,9 @@ import com.itsm.backend.ticket.domain.TicketStatus;
  * @param autoCloseAt        when a RESOLVED ticket will be closed automatically; null in other statuses
  * @param rating             the requester's satisfaction rating; null until rated
  * @param canRate            whether the caller may rate the ticket now
+ * @param canClaim           whether the caller may take the (unassigned) ticket
+ * @param canReassign        whether the caller may give the ticket to someone else or unassign it
+ * @param canEdit            whether the caller may change priority and category
  */
 public record TicketResponse(
         Long id,
@@ -37,5 +40,8 @@ public record TicketResponse(
         SlaResponse sla,
         Instant autoCloseAt,
         RatingResponse rating,
-        boolean canRate) {
+        boolean canRate,
+        boolean canClaim,
+        boolean canReassign,
+        boolean canEdit) {
 }

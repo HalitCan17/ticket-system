@@ -57,6 +57,34 @@ class NotificationRulesTest {
     }
 
     @Test
+    void assigneeChangeNotifiesNewAndPreviousAssigneeButNotTheActor() {
+        Ticket ticket = assignedTo("agent2");
+
+        // Manager moved it from agent1 to agent2
+        assertThat(NotificationRules.forAssigneeChange(ticket, AGENT, MANAGER)).containsExactly(
+                new Recipient("agent2", NotificationType.TICKET_ASSIGNED),
+                new Recipient(AGENT, NotificationType.TICKET_UNASSIGNED));
+        // agent1 handed it over themselves: only agent2 hears about it
+        assertThat(NotificationRules.forAssigneeChange(ticket, AGENT, AGENT))
+                .containsExactly(new Recipient("agent2", NotificationType.TICKET_ASSIGNED));
+        // agent2 claimed an unassigned ticket: nobody
+        assertThat(NotificationRules.forAssigneeChange(ticket, null, "agent2")).isEmpty();
+    }
+
+    @Test
+    void unassigningNotifiesThePreviousAssignee() {
+        assertThat(NotificationRules.forAssigneeChange(newTicket(), AGENT, MANAGER))
+                .containsExactly(new Recipient(AGENT, NotificationType.TICKET_UNASSIGNED));
+    }
+
+    @Test
+    void priorityChangeNotifiesTheAssignee() {
+        assertThat(NotificationRules.forPriorityChange(assignedTo(AGENT), MANAGER))
+                .containsExactly(new Recipient(AGENT, NotificationType.PRIORITY_CHANGED));
+        assertThat(NotificationRules.forPriorityChange(assignedTo(AGENT), AGENT)).isEmpty();
+    }
+
+    @Test
     void ratingNotifiesOnlyTheAssignee() {
         assertThat(NotificationRules.forRating(assignedTo(AGENT), CUSTOMER))
                 .containsExactly(new Recipient(AGENT, NotificationType.TICKET_RATED));
