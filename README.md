@@ -1,9 +1,11 @@
 # ITSM Ticket System
 
+[![CI](https://github.com/HalitCan17/ticket-system/actions/workflows/ci.yml/badge.svg)](https://github.com/HalitCan17/ticket-system/actions/workflows/ci.yml)
+
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 8** — log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
+> Durum: **Aşama 9** — GitHub Actions CI, log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -48,6 +50,10 @@ cd backend && ./mvnw test
 ```bash
 cd web && npm ci && npm test
 ```
+
+Her push'ta GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) backend testlerini (`./mvnw verify`, Testcontainers ile)
+ve web testlerini/build'ini çalıştırır. `main`'e push'larda bu ikisi geçerse uçtan uca testler de Compose yığınına karşı çalışır
+(gözlemleme servisleri olmadan). Hata olursa test raporları Actions sayfasında artifact olarak indirilebilir.
 
 ### Uçtan uca testler (Playwright)
 `web/e2e/` altındaki testler gerçek bir tarayıcıyla çalışan Compose yığınını (`http://localhost:3000`) kullanır. Kapsadıkları:
