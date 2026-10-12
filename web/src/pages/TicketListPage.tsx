@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router';
 import { useTicketsApi } from '../api/ApiContext.tsx';
 import type { TicketCategory, TicketScope, TicketStatus } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { isStaff } from '../auth/roles.ts';
 import { PriorityBadge, SlaBadge, StatusBadge } from '../components/Badges.tsx';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
 import { formatDateTime, userLabel } from '../format.ts';
@@ -28,6 +29,18 @@ function parseCategory(value: string | null): TicketCategory | undefined {
   return CATEGORY_ORDER.find((category) => category === value);
 }
 
+type Queue = 'me' | 'unassigned';
+
+const QUEUES: { value: Queue | undefined; label: string }[] = [
+  { value: undefined, label: 'Herkesin' },
+  { value: 'me', label: 'Bana atananlar' },
+  { value: 'unassigned', label: 'Atanmamışlar' },
+];
+
+function parseQueue(value: string | null): Queue | undefined {
+  return value === 'me' || value === 'unassigned' ? value : undefined;
+}
+
 /** The URL omits the default tab (OPEN). */
 function parseScope(value: string | null): TicketScope {
   return TABS.find((tab) => tab.scope === value?.toUpperCase())?.scope ?? 'OPEN';
@@ -38,18 +51,24 @@ interface Filters {
   scope: TicketScope;
   category?: TicketCategory;
   status?: TicketStatus;
+  /** Staff only. */
+  queue?: Queue;
+  sortBySla: boolean;
   page: number;
 }
 
 export function TicketListPage() {
   const api = useTicketsApi();
   const { user } = useAuth();
+  const staff = isStaff(user.role);
   const [searchParams, setSearchParams] = useSearchParams();
   const filters: Filters = {
     q: searchParams.get('q') ?? '',
     scope: parseScope(searchParams.get('scope')),
     category: parseCategory(searchParams.get('category')),
     status: parseStatus(searchParams.get('status')),
+    queue: staff ? parseQueue(searchParams.get('assignee')) : undefined,
+    sortBySla: staff && searchParams.get('sort') === 'sla',
     page: Math.max(0, Number(searchParams.get('page') ?? 0) || 0),
   };
   const [text, setText] = useState(filters.q);
@@ -62,6 +81,8 @@ export function TicketListPage() {
         scope: filters.scope,
         category: filters.category,
         status: filters.status,
+        assignee: filters.queue,
+        sort: filters.sortBySla ? 'SLA' : undefined,
         page: filters.page,
         size: PAGE_SIZE,
       }),
@@ -75,6 +96,8 @@ export function TicketListPage() {
     if (merged.scope !== 'OPEN') params.set('scope', merged.scope.toLowerCase());
     if (merged.category) params.set('category', merged.category);
     if (merged.status) params.set('status', merged.status);
+    if (merged.queue) params.set('assignee', merged.queue);
+    if (merged.sortBySla) params.set('sort', 'sla');
     if (merged.page) params.set('page', String(merged.page));
     setSearchParams(params);
   }
@@ -86,7 +109,8 @@ export function TicketListPage() {
     // Only typing triggers a search; the other filters update the URL directly.
   }, [text]);
 
-  const filtered = filters.q !== '' || filters.category !== undefined || filters.status !== undefined;
+  const filtered =
+    filters.q !== '' || filters.category !== undefined || filters.status !== undefined || filters.queue !== undefined;
 
   return (
     <section>
@@ -111,6 +135,34 @@ export function TicketListPage() {
           </button>
         ))}
       </div>
+
+      {staff && (
+        <div className={styles.filters}>
+          <div className={styles.segmented} role="group" aria-label="İş kuyruğu">
+            {QUEUES.map((q) => (
+              <button
+                key={q.label}
+                type="button"
+                aria-pressed={filters.queue === q.value}
+                className={filters.queue === q.value ? styles.segmentActive : styles.segment}
+                onClick={() => update({ queue: q.value })}
+              >
+                {q.label}
+              </button>
+            ))}
+          </div>
+          <label className={styles.filter}>
+            <span>Sıralama</span>
+            <select
+              value={filters.sortBySla ? 'sla' : 'newest'}
+              onChange={(event) => update({ sortBySla: event.target.value === 'sla' })}
+            >
+              <option value="newest">En yeni</option>
+              <option value="sla">SLA'sı en yakın</option>
+            </select>
+          </label>
+        </div>
+      )}
 
       <div className={styles.filters}>
         <label className={styles.search}>

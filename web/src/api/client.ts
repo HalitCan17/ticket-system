@@ -21,6 +21,8 @@ export type TokenSource = (forceRefresh?: boolean) => Promise<string>;
 export interface ApiClient {
   get<T>(path: string): Promise<T>;
   post<T>(path: string, body?: unknown): Promise<T>;
+  put<T>(path: string, body: unknown): Promise<T>;
+  patch<T>(path: string, body: unknown): Promise<T>;
   delete(path: string): Promise<void>;
   /** multipart/form-data; the browser sets the boundary header. */
   upload<T>(path: string, form: FormData): Promise<T>;
@@ -64,6 +66,8 @@ export function createApiClient(getToken: TokenSource, fetchImpl: typeof fetch =
     get: async (path) => json(await send('GET', path, { kind: 'none' })),
     post: async (path, body) =>
       json(await send('POST', path, body === undefined ? { kind: 'none' } : { kind: 'json', value: body })),
+    put: async (path, body) => json(await send('PUT', path, { kind: 'json', value: body })),
+    patch: async (path, body) => json(await send('PATCH', path, { kind: 'json', value: body })),
     delete: async (path) => {
       await send('DELETE', path, { kind: 'none' });
     },

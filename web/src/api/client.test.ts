@@ -18,6 +18,19 @@ describe('createApiClient', () => {
     expect(init.body).toBeUndefined();
   });
 
+  it('sends PUT and PATCH with JSON bodies', async () => {
+    const fetchImpl = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse(200, { id: 2 })));
+    const client = createApiClient(vi.fn().mockResolvedValue('abc'), fetchImpl);
+
+    await client.put('/api/tickets/2/assignee', { assigneeId: null });
+    await client.patch('/api/tickets/2', { priority: 'LOW' });
+
+    expect(fetchImpl.mock.calls.map(([, init]) => [init.method, init.body])).toEqual([
+      ['PUT', '{"assigneeId":null}'],
+      ['PATCH', '{"priority":"LOW"}'],
+    ]);
+  });
+
   it('sends JSON bodies on POST', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(201, { id: 2 }));
     const client = createApiClient(vi.fn().mockResolvedValue('abc'), fetchImpl);

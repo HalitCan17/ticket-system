@@ -55,6 +55,12 @@ export interface Ticket {
   rating: Rating | null;
   /** Whether the caller may rate now (requester, resolved, not yet rated). */
   canRate: boolean;
+  /** Staff may take this unassigned ticket. */
+  canClaim: boolean;
+  /** Caller may give the ticket to someone else or unassign it (manager, or agent on own ticket). */
+  canReassign: boolean;
+  /** Staff may change priority and category. */
+  canEdit: boolean;
 }
 
 export interface Page<T> {
@@ -90,6 +96,36 @@ export interface CreateTicketRequest {
   category: TicketCategory;
 }
 
+export interface UpdateTicketRequest {
+  priority?: TicketPriority;
+  category?: TicketCategory;
+  /** Required when the priority changes. */
+  reason?: string;
+}
+
+export type ActivityType = 'ASSIGNEE_CHANGED' | 'PRIORITY_CHANGED' | 'CATEGORY_CHANGED';
+
+/** Staff-only log of assignment, priority and category changes. */
+export interface Activity {
+  id: number;
+  type: ActivityType;
+  /** User id for ASSIGNEE_CHANGED (null = unassigned), otherwise the enum name. */
+  oldValue: string | null;
+  oldName: string | null;
+  newValue: string | null;
+  newName: string | null;
+  note: string | null;
+  actorId: string;
+  actorName: string | null;
+  createdAt: string;
+}
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  role: Role;
+}
+
 export interface RateTicketRequest {
   score: number;
   comment?: string;
@@ -123,7 +159,10 @@ export type NotificationType =
   | 'INTERNAL_COMMENT_ADDED'
   | 'SLA_BREACHED'
   | 'ATTACHMENT_ADDED'
-  | 'TICKET_RATED';
+  | 'TICKET_RATED'
+  | 'TICKET_ASSIGNED'
+  | 'TICKET_UNASSIGNED'
+  | 'PRIORITY_CHANGED';
 
 /** Mirrors backend NotificationResponse; the sentence is built in the UI from the type. */
 export interface AppNotification {

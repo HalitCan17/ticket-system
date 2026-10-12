@@ -34,6 +34,9 @@ export function aTicket(overrides: Partial<Ticket> = {}): Ticket {
     autoCloseAt: null,
     rating: null,
     canRate: false,
+    canClaim: false,
+    canReassign: false,
+    canEdit: false,
     ...overrides,
   };
 }

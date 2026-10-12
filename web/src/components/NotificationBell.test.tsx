@@ -42,6 +42,15 @@ describe('notificationText', () => {
     expect(notificationText(aNotification({ type: 'TICKET_RATED', actorName: 'Customer One' }))).toBe(
       'Customer One çözümü puanladı',
     );
+    expect(notificationText(aNotification({ type: 'TICKET_ASSIGNED', actorName: 'Manager One' }))).toBe(
+      'Manager One talebi size atadı',
+    );
+    expect(notificationText(aNotification({ type: 'TICKET_UNASSIGNED', actorName: 'Manager One' }))).toBe(
+      'Manager One talebi sizden aldı',
+    );
+    expect(notificationText(aNotification({ type: 'PRIORITY_CHANGED', actorName: 'Manager One' }))).toBe(
+      'Manager One önceliği değiştirdi',
+    );
   });
 });
 

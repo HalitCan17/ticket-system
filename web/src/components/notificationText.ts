@@ -21,5 +21,11 @@ export function notificationText(n: AppNotification): string {
       return `${actor} dosya ekledi`;
     case 'TICKET_RATED':
       return `${actor} çözümü puanladı`;
+    case 'TICKET_ASSIGNED':
+      return `${actor} talebi size atadı`;
+    case 'TICKET_UNASSIGNED':
+      return `${actor} talebi sizden aldı`;
+    case 'PRIORITY_CHANGED':
+      return `${actor} önceliği değiştirdi`;
   }
 }

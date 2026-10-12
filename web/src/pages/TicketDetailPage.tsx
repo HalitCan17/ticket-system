@@ -2,17 +2,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
 import { useTicketsApi } from '../api/ApiContext.tsx';
 import { ApiError } from '../api/client.ts';
-import type { CreateCommentRequest, Ticket, TicketStatus } from '../api/types.ts';
+import type { Activity, CreateCommentRequest, StatusHistoryEntry, Ticket, TicketStatus, UpdateTicketRequest } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { isStaff } from '../auth/roles.ts';
+import { AssignmentPanel } from '../components/AssignmentPanel.tsx';
 import { Attachments } from '../components/Attachments.tsx';
 import { PriorityBadge, SlaBadge, StatusBadge } from '../components/Badges.tsx';
 import { CommentForm } from '../components/CommentForm.tsx';
+import { EditTicketPanel } from '../components/EditTicketPanel.tsx';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
 import { Rating } from '../components/Rating.tsx';
 import { TransitionActions } from '../components/TransitionActions.tsx';
 import { formatDateTime, formatDuration, userLabel } from '../format.ts';
-import { CATEGORY_LABELS, STATUS_LABELS } from '../labels.ts';
+import { CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '../labels.ts';
 import comments from '../components/Comments.module.css';
 import styles from './TicketDetailPage.module.css';
 
@@ -25,6 +27,12 @@ export function TicketDetailPage() {
 
   const ticket = useQuery({ queryKey: ['ticket', id], queryFn: () => api.get(id), enabled: validId });
   const history = useQuery({ queryKey: ['history', id], queryFn: () => api.history(id), enabled: ticket.isSuccess });
+  const staffView = isStaff(user.role);
+  const activities = useQuery({
+    queryKey: ['activities', id],
+    queryFn: () => api.activities(id),
+    enabled: ticket.isSuccess && staffView,
+  });
   const commentList = useQuery({
     queryKey: ['comments', id],
     queryFn: () => api.comments(id),
@@ -39,6 +47,20 @@ export function TicketDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['history', id] });
       void queryClient.invalidateQueries({ queryKey: ['tickets'] });
     },
+  });
+
+  const changed = (updated: Ticket) => {
+    queryClient.setQueryData(['ticket', id], updated);
+    void queryClient.invalidateQueries({ queryKey: ['activities', id] });
+    void queryClient.invalidateQueries({ queryKey: ['tickets'] });
+  };
+  const assign = useMutation({
+    mutationFn: (assigneeId: string | null) => api.assign(id, assigneeId),
+    onSuccess: changed,
+  });
+  const update = useMutation({
+    mutationFn: (request: UpdateTicketRequest) => api.update(id, request),
+    onSuccess: changed,
   });
 
   const rate = useMutation({
@@ -67,7 +89,7 @@ export function TicketDetailPage() {
   }
 
   const t = ticket.data;
-  const staff = isStaff(user.role);
+  const staff = staffView;
 
   return (
     <article className={styles.page}>
@@ -175,17 +197,29 @@ export function TicketDetailPage() {
             )}
           </dl>
 
+          <AssignmentPanel
+            ticket={t}
+            currentUserId={user.id}
+            role={user.role}
+            pending={assign.isPending}
+            onAssign={(assigneeId) => assign.mutate(assigneeId)}
+          />
+          {assign.isError && <ErrorMessage error={assign.error} />}
+          <EditTicketPanel ticket={t} pending={update.isPending} onSave={(request) => update.mutate(request)} />
+          {update.isError && <ErrorMessage error={update.error} />}
+
           <h2>Geçmiş</h2>
           {history.isError && <ErrorMessage error={history.error} />}
+          {activities.isError && <ErrorMessage error={activities.error} />}
           <ol className={styles.timeline}>
-            {history.data?.map((entry, index) => (
-              <li key={index}>
+            {timeline(history.data ?? [], activities.data ?? []).map((item) => (
+              <li key={item.key}>
                 <div>
-                  <strong>{STATUS_LABELS[entry.toStatus]}</strong>
-                  <span className={styles.muted}> · {userLabel(entry.changedBy, entry.changedByName, user.id)}</span>
+                  <strong>{item.title}</strong>
+                  <span className={styles.muted}> · {userLabel(item.actorId, item.actorName, user.id)}</span>
                 </div>
-                <div className={styles.muted}>{formatDateTime(entry.changedAt)}</div>
-                {entry.note && <p className={styles.note}>{entry.note}</p>}
+                <div className={styles.muted}>{formatDateTime(item.at)}</div>
+                {item.note && <p className={styles.note}>{item.note}</p>}
               </li>
             ))}
           </ol>
@@ -193,6 +227,56 @@ export function TicketDetailPage() {
       </div>
     </article>
   );
+}
+
+interface TimelineItem {
+  key: string;
+  title: string;
+  actorId: string;
+  actorName: string | null;
+  note: string | null;
+  at: string;
+}
+
+function activityTitle(activity: Activity): string {
+  switch (activity.type) {
+    case 'ASSIGNEE_CHANGED':
+      return `Atama: ${activity.oldName ?? (activity.oldValue ? activity.oldValue : 'atanmamış')} → ${
+        activity.newName ?? (activity.newValue ? activity.newValue : 'atanmamış')
+      }`;
+    case 'PRIORITY_CHANGED':
+      return `Öncelik: ${label(PRIORITY_LABELS, activity.oldValue)} → ${label(PRIORITY_LABELS, activity.newValue)}`;
+    case 'CATEGORY_CHANGED':
+      return `Kategori: ${label(CATEGORY_LABELS, activity.oldValue)} → ${label(CATEGORY_LABELS, activity.newValue)}`;
+  }
+}
+
+function label(labels: Record<string, string>, value: string | null): string {
+  return value ? (labels[value] ?? value) : '—';
+}
+
+/** Status history and (staff only) activities in one list, oldest first; ties keep status entries first. */
+function timeline(history: StatusHistoryEntry[], activities: Activity[]): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...history.map((entry, index) => ({
+      key: `s${index}`,
+      title: STATUS_LABELS[entry.toStatus],
+      actorId: entry.changedBy,
+      actorName: entry.changedByName,
+      note: entry.note,
+      at: entry.changedAt,
+    })),
+    ...activities.map((activity) => ({
+      key: `a${activity.id}`,
+      title: activityTitle(activity),
+      actorId: activity.actorId,
+      actorName: activity.actorName,
+      note: activity.note,
+      at: activity.createdAt,
+    })),
+  ];
+  // Stable sort: equal times keep the order above.
+  return items.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 }
 
 function AutoCloseNotice({ ticket, customerView }: { ticket: Ticket; customerView: boolean }) {

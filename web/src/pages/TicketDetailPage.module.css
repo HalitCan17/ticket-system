@@ -97,3 +97,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+.side > section,
+.side > form,
+.side > button {
+  margin-top: var(--space-3);
+}
