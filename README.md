@@ -5,7 +5,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 15** — SLA genişletmeleri (ilk yanıt süresi, %80 uyarı, eskalasyon, mesai takvimi); destek grupları, kategoriye göre yönlendirme ve grup içi otomatik atama; yönetici paneli, hazır yanıtlar, personel iş kuyruğu, üstlenme/devretme/atama, öncelik ve kategori değiştirme; müşteri özellikleri (kategori, arama, geri çekme, memnuniyet puanı), GitHub Actions CI, log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
+> Durum: **Aşama 16** — bilgi bankası (makaleler, arama, oylama, talep açarken öneri); SLA genişletmeleri (ilk yanıt süresi, %80 uyarı, eskalasyon, mesai takvimi); destek grupları, kategoriye göre yönlendirme ve grup içi otomatik atama; yönetici paneli, hazır yanıtlar, personel iş kuyruğu, üstlenme/devretme/atama, öncelik ve kategori değiştirme; müşteri özellikleri (kategori, arama, geri çekme, memnuniyet puanı), GitHub Actions CI, log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -104,6 +104,9 @@ Ayrıntılar: [ADR 0009](docs/adr/0009-observability.md).
   grupları, üyeleri ve kategori yönlendirmesini ayarlar; grup isterse talebi üyelerine sırayla ya da en az işi olana
   otomatik atar. Bir üye gruptan çıkarılınca o gruptaki açık talepleri kalan üyelere dağıtılır (ya da grup kuyruğuna
   döner). Personel "Grubumun talepleri" kuyruğunu kullanır, talebin grubunu elle de değiştirebilir.
+- **Bilgi bankası:** herkes genel makaleleri arar ve okur, "işe yaradı mı" oyu verir; yeni talep sayfası başlığa uyan
+  makaleleri önerir. Personel makale yazar (taslak / yalnızca ekip / herkese açık) ve yorumda makaleye bağlantı verir;
+  silme yalnız yöneticide. Ayrıntılar: [ADR 0016](docs/adr/0016-knowledge-base.md).
 - **Panel (yönetici):** açık / atanmamış / SLA'sı aşılmış talepler, son 7-30-90 günde açılan ve çözülen, SLA uyum oranı,
   ortalama çözüm süresi, memnuniyet; statü, kategori ve puan dağılımları; ekip tablosu (kişi başına açık iş, SLA aşımı,
   çözülen, memnuniyet) ve oradan kişinin kuyruğuna geçiş.
@@ -232,6 +235,9 @@ curl -s -d client_id=itsm-cli -d grant_type=password -d username=customer1 -d pa
 |---|---|---|
 | POST | `/api/tickets` | ticket aç: `{title, description, priority: LOW\|MEDIUM\|HIGH\|CRITICAL, category: HARDWARE\|SOFTWARE\|NETWORK\|ACCESS\|OTHER}` |
 | GET | `/api/tickets?q=&scope=OPEN\|CLOSED\|ALL&category=&status=&page=0&size=20` | sayfalı liste (`q`: başlıkta ya da `#id`; personel için `assignee=me\|unassigned\|<id>`, `group=mine\|<id>`, `sort=SLA`; `size` ≤ 100) |
+| GET | `/api/kb/articles?q=&category=&visibility=&page=&size=` | bilgi bankası araması (müşteri yalnız `PUBLIC` görür; `size` ≤ 50) |
+| GET / POST / PUT / DELETE | `/api/kb/articles[/{id}]` | makale oku; personel yazar, yönetici siler |
+| PUT | `/api/kb/articles/{id}/vote` | `{helpful}`: kullanıcı başına tek, değiştirilebilir oy |
 | GET | `/api/sla/calendar` | mesai takvimi ve SLA hedefleri (personel) |
 | PUT | `/api/sla/calendar` | yönetici: `{enabled, zoneId, workDays, start, end, holidays}`; açık talepler yeniden hesaplanır |
 | GET | `/api/tickets/{id}` | detay (+ çağıranın yapabileceği `allowedTransitions`) |
@@ -286,4 +292,5 @@ curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Co
 - [ADR 0013 — Yönetici paneli](docs/adr/0013-manager-dashboard.md)
 - [ADR 0014 — Destek grupları](docs/adr/0014-support-groups.md)
 - [ADR 0015 — SLA genişletmeleri](docs/adr/0015-sla-extensions.md)
+- [ADR 0016 — Bilgi bankası](docs/adr/0016-knowledge-base.md)
 - [jBPM spike raporu](docs/jbpm-spike.md)
