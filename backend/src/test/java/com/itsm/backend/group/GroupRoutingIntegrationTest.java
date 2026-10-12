@@ -109,8 +109,9 @@ class GroupRoutingIntegrationTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("MEMBER_NOT_STAFF"));
         write(put("/api/groups/{id}/members", id), "manager1", "MANAGER", Map.of("userIds", List.of(agentA)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.members[0].id").value(agentA))
-                .andExpect(jsonPath("$.members[0].name").value(TestTokens.displayName(agentA)));
+                .andExpect(jsonPath("$.group.members[0].id").value(agentA))
+                .andExpect(jsonPath("$.group.members[0].name").value(TestTokens.displayName(agentA)))
+                .andExpect(jsonPath("$.releasedTickets").value(0));
 
         // Deleting a group leaves its tickets without a group; the assignee stays.
         routes(Map.of("SOFTWARE", id));
@@ -194,6 +195,48 @@ class GroupRoutingIntegrationTest {
     }
 
     @Test
+    void removingAMemberReassignsTheirOpenTicketsOfThatGroup() throws Exception {
+        long group = createGroup("ROUND_ROBIN", agentA, agentB);
+        routes(Map.of("NETWORK", group));
+        long first = create("NETWORK");   // agentA
+        long second = create("NETWORK");  // agentB
+        long third = create("NETWORK");   // agentA
+        long resolved = create("NETWORK"); // agentB, resolved below
+        transition(resolved, agentB, "AGENT", "IN_PROGRESS", null);
+        transition(resolved, agentB, "AGENT", "RESOLVED", "Tamam");
+        long elsewhere = create("OTHER");
+        assign(elsewhere, agentA); // agentA's ticket in another group stays theirs
+
+        write(put("/api/groups/{id}/members", group), "manager1", "MANAGER", Map.of("userIds", List.of(agentB)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.releasedTickets").value(2));
+
+        for (long id : List.of(first, second, third)) {
+            ticket(id, "manager1", "MANAGER").andExpect(jsonPath("$.assigneeId").value(agentB));
+        }
+        ticket(elsewhere, "manager1", "MANAGER").andExpect(jsonPath("$.assigneeId").value(agentA));
+        perform(get("/api/tickets/{id}/activities", first), "manager1", "MANAGER")
+                .andExpect(jsonPath("$[1].type").value("ASSIGNEE_CHANGED"))
+                .andExpect(jsonPath("$[1].oldValue").value(agentA))
+                .andExpect(jsonPath("$[1].newValue").value(nullValue()))
+                .andExpect(jsonPath("$[1].actorId").value("manager1"))
+                .andExpect(jsonPath("$[2].newValue").value(agentB))
+                .andExpect(jsonPath("$[2].actorId").value("system"));
+        assertThat(types(agentA)).contains(NotificationType.TICKET_UNASSIGNED);
+
+        // The last member leaves a queue-only group: the tickets wait unassigned in the group.
+        write(put("/api/groups/{id}", group), "manager1", "MANAGER",
+                Map.of("name", "Grup boşalan " + suffix, "assignmentMode", "NONE")).andExpect(status().isOk());
+        write(put("/api/groups/{id}/members", group), "manager1", "MANAGER", Map.of("userIds", List.of()))
+                .andExpect(jsonPath("$.releasedTickets").value(3));
+        ticket(second, "manager1", "MANAGER")
+                .andExpect(jsonPath("$.assigneeId").value(nullValue()))
+                .andExpect(jsonPath("$.groupId").value(group));
+        // A resolved ticket is finished work: it keeps its assignee.
+        ticket(resolved, "manager1", "MANAGER").andExpect(jsonPath("$.assigneeId").value(agentB));
+    }
+
+    @Test
     void myGroupsQueueAndGroupWorkload() throws Exception {
         long group = createGroup("NONE", agentA);
         routes(Map.of("SOFTWARE", group));
@@ -261,6 +304,15 @@ class GroupRoutingIntegrationTest {
     private void assign(long id, String assigneeId) throws Exception {
         write(put("/api/tickets/{id}/assignee", id), "manager1", "MANAGER", Map.of("assigneeId", assigneeId))
                 .andExpect(status().isOk());
+    }
+
+    private void transition(long id, String userId, String role, String target, String note) throws Exception {
+        Map<String, String> body = new HashMap<>();
+        body.put("targetStatus", target);
+        if (note != null) {
+            body.put("note", note);
+        }
+        write(post("/api/tickets/{id}/transitions", id), userId, role, body).andExpect(status().isOk());
     }
 
     private ResultActions update(long id, String userId, Map<String, Object> body) throws Exception {

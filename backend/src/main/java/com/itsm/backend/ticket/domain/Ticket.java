@@ -203,6 +203,19 @@ public class Ticket {
         return true;
     }
 
+    /**
+     * Takes the ticket away from its assignee on behalf of the application (the assignee left the ticket's
+     * group). The actor rules of {@link TicketAssignment} do not apply.
+     *
+     * @return the previous assignee id
+     */
+    public String releaseAssignee(Instant now) {
+        String previous = assigneeId;
+        assigneeId = null;
+        updatedAt = now;
+        return previous;
+    }
+
     /** Staff may change priority and category while the ticket is not closed. */
     public boolean canBeEditedBy(CurrentUser actor) {
         return actor.isStaff() && !isClosed();

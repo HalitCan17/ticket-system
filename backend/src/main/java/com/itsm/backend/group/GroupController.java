@@ -53,7 +53,8 @@ public class GroupController {
     }
 
     @PutMapping("/{id}/members")
-    public GroupResponse members(CurrentUser user, @PathVariable long id, @Valid @RequestBody MembersRequest request) {
+    public GroupDtos.MembersResponse members(CurrentUser user, @PathVariable long id,
+            @Valid @RequestBody MembersRequest request) {
         return groups.replaceMembers(user, id, request.userIds());
     }
 

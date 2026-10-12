@@ -7,6 +7,8 @@ async function configureGroup(manager: Page, group: string, members: string[], m
   const card = manager.getByRole('listitem', { name: group });
   await card.getByRole('button', { name: 'Üyeler' }).click();
   const form = card.getByRole('form', { name: `${group} üyeleri` });
+  // The staff list loads after the form opens; wait for it before reading the boxes.
+  await expect(form.getByRole('checkbox').first()).toBeVisible();
   for (const box of await form.getByRole('checkbox').all()) {
     const name = (await box.evaluate((el) => el.parentElement?.textContent ?? '')).replace(' · yönetici', '');
     await box.setChecked(members.includes(name.trim()));
@@ -48,6 +50,18 @@ test('a network ticket is routed to the network team and assigned round-robin', 
 
     await agent.goto(`/tickets/${id}`);
     await expect(agent.getByRole('complementary')).toContainText('Atama: atanmamış → Agent One');
+
+    // Agent One leaves the group: the open ticket goes back to the group's queue (no members left).
+    await configureGroup(manager, 'Ağ ekibi', [], 'Otomatik atama yok (grup kuyruğunda bekler)');
+    await customer.reload();
+    await expect(facts).toContainText('Ağ ekibi');
+    await expect(facts.locator('dd').nth(3)).toHaveText('—'); // Atanan
+    await agent.goto(`/tickets/${id}`);
+    await expect(agent.getByRole('complementary')).toContainText('Atama: Agent One → atanmamış');
+    await agent.getByRole('button', { name: /^Bildirimler/ }).click();
+    await expect(
+      agent.getByRole('dialog', { name: 'Bildirimler' }).getByRole('button', { name: title }).first(),
+    ).toContainText('talebi sizden aldı');
   } finally {
     // Leave the shared stack as it was for the other tests.
     await configureGroup(manager, 'Ağ ekibi', [], 'Otomatik atama yok (grup kuyruğunda bekler)');

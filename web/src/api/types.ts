@@ -187,6 +187,13 @@ export interface SupportGroup {
   members: StaffMember[];
 }
 
+/** Result of replacing a group's members. */
+export interface MembersResult {
+  group: SupportGroup;
+  /** Open tickets taken from removed members and assigned again (or put back in the group's queue). */
+  releasedTickets: number;
+}
+
 export interface GroupRequest {
   name: string;
   description?: string;

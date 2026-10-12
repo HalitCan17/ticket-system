@@ -26,6 +26,16 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     List<Long> findAutoCloseCandidateIds(@Param("cutoff") Instant cutoff, @Param("afterId") long afterId,
             Pageable pageable);
 
+    /** Open tickets of a group that are assigned to a given user (released when the user leaves the group). */
+    @Query("""
+            select t from Ticket t
+            where t.groupId = :groupId and t.assigneeId = :assigneeId
+              and t.status in (com.itsm.backend.ticket.domain.TicketStatus.NEW,
+                               com.itsm.backend.ticket.domain.TicketStatus.IN_PROGRESS,
+                               com.itsm.backend.ticket.domain.TicketStatus.WAITING_FOR_CUSTOMER)
+            order by t.id""")
+    List<Ticket> findOpenInGroupAssignedTo(@Param("groupId") long groupId, @Param("assigneeId") String assigneeId);
+
     /**
      * Ids of open (not RESOLVED/CLOSED) tickets whose SLA is exceeded at {@code now} and not yet notified,
      * in id order after {@code afterId}. The elapsed time is computed like

@@ -1,6 +1,7 @@
 package com.itsm.backend.group;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -35,13 +36,15 @@ public class GroupService {
     private final SupportGroupRepository groups;
     private final GroupDirectory directory;
     private final UserDirectory userDirectory;
+    private final GroupRouting routing;
     private final Clock clock;
 
     public GroupService(SupportGroupRepository groups, GroupDirectory directory, UserDirectory userDirectory,
-            Clock clock) {
+            GroupRouting routing, Clock clock) {
         this.groups = groups;
         this.directory = directory;
         this.userDirectory = userDirectory;
+        this.routing = routing;
         this.clock = clock;
     }
 
@@ -92,7 +95,7 @@ public class GroupService {
     }
 
     @Transactional
-    public GroupResponse replaceMembers(CurrentUser user, long id, List<String> userIds) {
+    public GroupDtos.MembersResponse replaceMembers(CurrentUser user, long id, List<String> userIds) {
         requireManager(user);
         SupportGroup group = find(id);
         Set<String> members = new LinkedHashSet<>();
@@ -103,10 +106,18 @@ public class GroupService {
             }
             members.add(trimmed);
         }
-        group.replaceMembers(members, clock.instant());
-        save(group);
-        log.info("Support group {} now has {} member(s), changed by {}", id, members.size(), user.id());
-        return single(group);
+        Set<String> removed = new LinkedHashSet<>(group.getMemberIds());
+        removed.removeAll(members);
+        Instant now = clock.instant();
+        group.replaceMembers(members, now);
+        save(group); // flushed: the routing below reads the new membership
+        int released = 0;
+        for (String formerMember : removed) {
+            released += routing.releaseMember(id, formerMember, user.id(), now);
+        }
+        log.info("Support group {} now has {} member(s), changed by {}; {} ticket(s) released", id, members.size(),
+                user.id(), released);
+        return new GroupDtos.MembersResponse(single(group), released);
     }
 
     /** Replaces the whole routing table; categories missing from the request lose their route. */

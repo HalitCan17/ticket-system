@@ -12,6 +12,7 @@ import com.itsm.backend.ticket.domain.TicketActivity;
 import com.itsm.backend.ticket.domain.TicketActivityType;
 import com.itsm.backend.ticket.event.TicketAssigneeChangedEvent;
 import com.itsm.backend.ticket.repository.TicketActivityRepository;
+import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.user.UserDirectory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,13 +31,15 @@ public class GroupRouting {
     private final GroupDirectory directory;
     private final SupportGroupRepository groups;
     private final TicketActivityRepository activities;
+    private final TicketRepository tickets;
     private final ApplicationEventPublisher events;
 
     public GroupRouting(GroupDirectory directory, SupportGroupRepository groups, TicketActivityRepository activities,
-            ApplicationEventPublisher events) {
+            TicketRepository tickets, ApplicationEventPublisher events) {
         this.directory = directory;
         this.groups = groups;
         this.activities = activities;
+        this.tickets = tickets;
         this.events = events;
     }
 
@@ -75,6 +78,28 @@ public class GroupRouting {
                 asText(groupId), null, actorId, now));
         log.info("Ticket {} group {} -> {} by {}", ticket.getId(), previous, groupId, actorId);
         assignWithinGroup(ticket, now);
+    }
+
+    /**
+     * A member left the group: their open tickets of this group are taken from them and assigned again following
+     * the group's mode (or wait unassigned in the group's queue). Resolved and closed tickets stay as they are.
+     * Call after the membership change was flushed.
+     *
+     * @return number of tickets taken from the member
+     */
+    public int releaseMember(long groupId, String userId, String actorId, Instant now) {
+        List<Ticket> held = tickets.findOpenInGroupAssignedTo(groupId, userId);
+        for (Ticket ticket : held) {
+            ticket.releaseAssignee(now);
+            activities.save(new TicketActivity(ticket.getId(), TicketActivityType.ASSIGNEE_CHANGED, userId, null,
+                    null, actorId, now));
+            events.publishEvent(new TicketAssigneeChangedEvent(ticket, userId, actorId));
+            assignWithinGroup(ticket, now);
+        }
+        if (!held.isEmpty()) {
+            log.info("{} open ticket(s) of group {} released from {} by {}", held.size(), groupId, userId, actorId);
+        }
+        return held.size();
     }
 
     private void assignWithinGroup(Ticket ticket, Instant now) {

@@ -39,6 +39,17 @@ konusuna göre ilgili ekibe gider ve çoğu zaman ekip içinde otomatik dağıt�
 - Atamayı "system" yapar: `ASSIGNEE_CHANGED` etkinliği yazılır ve atanan kişiye `TICKET_ASSIGNED` bildirimi gider.
   Mevcut olay ve kural kullanılır, yeni bir bildirim türü eklenmedi.
 
+### Üye gruptan çıkınca
+- Çıkarılan kişinin **o gruptaki açık talepleri** (NEW, IN_PROGRESS, WAITING_FOR_CUSTOMER) ondan alınır ve grubun moduna
+  göre kalan üyelere yeniden atanır. Mod `NONE` ise ya da grupta üye kalmadıysa talep grup kuyruğunda atanmamış bekler.
+- Kişinin başka gruplardaki talepleri onda kalır, çünkü o gruplarda hâlâ üyedir. Çözülmüş ve kapalı talepler de
+  değişmez, çünkü iş bitmiştir.
+- İki adım da etkinlik olarak kaydedilir: önce yöneticinin yaptığı "Agent → atanmamış", sonra system'in yaptığı yeni
+  atama. Çıkarılan kişiye `TICKET_UNASSIGNED`, yeni atanana `TICKET_ASSIGNED` bildirimi gider.
+- `PUT /api/groups/{id}/members` kaç talebin taşındığını `releasedTickets` alanıyla döndürür. Yönetici ekranı
+  kaydetmeden önce kimlerin çıkarılacağını ve taleplerinin ne olacağını, kaydettikten sonra da kaç talebin taşındığını
+  gösterir.
+
 ### Görünürlük ve API
 - Grup yönetimi yalnız MANAGER'dadır: `POST/PUT/DELETE /api/groups`, `PUT /api/groups/{id}/members`,
   `PUT /api/groups/routes`. Personel listeyi okur. Müşteri talebinde yalnızca grubun adını görür.
@@ -50,6 +61,7 @@ konusuna göre ilgili ekibe gider ve çoğu zaman ekip içinde otomatik dağıt�
 - (+) Seçim mantığı birim testli. Yönlendirme, iki mod, yeniden yönlendirme, yetkiler ve kilitli imleç gerçek Postgres'le
   test edildi. E2E testi gerçek tarayıcıda round-robin atamayı ve bildirimi doğrular, ayarları sonunda geri alır.
 - (−) Rotalar sistem geneli tek bir tablodur. Testler bu yüzden rotaları kaydedip geri yükler.
-- (−) Bir üye gruptan çıkınca açık işleri başkasına dağıtılmaz. Kapasite sınırı ve mesaiye göre atama yoktur (Aşama 15
-  ve sonrası).
+- (−) Kapasite sınırı ve mesaiye göre atama yoktur (Aşama 15 ve sonrası).
+- (−) Rolü personel olmaktan çıkan biri gruplarda kalır ve otomatik atamada atlanır. Açık talepleri ancak yönetici onu
+  gruptan çıkardığında yeniden dağıtılır.
 - (−) Üyeler `app_users`'a dayanır. Hiç giriş yapmamış bir agent gruba eklenemez.

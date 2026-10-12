@@ -35,4 +35,10 @@ public final class GroupDtos {
             List<TicketCategory> categories,
             List<StaffMember> members) {
     }
+
+    /**
+     * @param releasedTickets open tickets taken from removed members and assigned again (or put back in the queue)
+     */
+    public record MembersResponse(GroupResponse group, int releasedTickets) {
+    }
 }

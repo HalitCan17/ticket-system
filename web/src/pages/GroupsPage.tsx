@@ -150,6 +150,8 @@ function RoutingTable({ groups, onSaved }: { groups: SupportGroup[]; onSaved: ()
 function GroupCard({ group, onChanged }: { group: SupportGroup; onChanged: () => void }) {
   const api = useGroupsApi();
   const [mode, setMode] = useState<'view' | 'edit' | 'members'>('view');
+  /** Shown after members were saved and someone's tickets had to move. */
+  const [released, setReleased] = useState<number | null>(null);
 
   const update = useMutation({
     mutationFn: (request: GroupRequest) => api.update(group.id, request),
@@ -198,6 +200,14 @@ function GroupCard({ group, onChanged }: { group: SupportGroup; onChanged: () =>
         <dd>{group.members.length === 0 ? 'Üye yok' : group.members.map((m) => m.name).join(', ')}</dd>
       </dl>
       {remove.isError && <ErrorMessage error={remove.error} />}
+      {released !== null && released > 0 && (
+        <p className={styles.notice} role="status">
+          Gruptan çıkarılan üyelerin {released} açık talebi{' '}
+          {group.assignmentMode === 'NONE' || group.members.length === 0
+            ? 'grup kuyruğuna geri alındı.'
+            : 'kalan üyelere yeniden dağıtıldı.'}
+        </p>
+      )}
 
       {mode === 'edit' && (
         <GroupForm
@@ -212,7 +222,8 @@ function GroupCard({ group, onChanged }: { group: SupportGroup; onChanged: () =>
       {mode === 'members' && (
         <MembersForm
           group={group}
-          onDone={() => {
+          onDone={(releasedTickets) => {
+            setReleased(releasedTickets);
             setMode('view');
             onChanged();
           }}
@@ -291,12 +302,22 @@ function GroupForm({ label, initial, pending, error, onSave, onCancel }: GroupFo
   );
 }
 
-function MembersForm({ group, onDone, onCancel }: { group: SupportGroup; onDone: () => void; onCancel: () => void }) {
+interface MembersFormProps {
+  group: SupportGroup;
+  onDone: (releasedTickets: number) => void;
+  onCancel: () => void;
+}
+
+function MembersForm({ group, onDone, onCancel }: MembersFormProps) {
   const groupsApi = useGroupsApi();
   const ticketsApi = useTicketsApi();
   const staff = useQuery({ queryKey: ['staff'], queryFn: () => ticketsApi.staff() });
   const [selected, setSelected] = useState<Set<string>>(new Set(group.members.map((m) => m.id)));
-  const save = useMutation({ mutationFn: () => groupsApi.setMembers(group.id, [...selected]), onSuccess: onDone });
+  const save = useMutation({
+    mutationFn: () => groupsApi.setMembers(group.id, [...selected]),
+    onSuccess: (result) => onDone(result.releasedTickets),
+  });
+  const removing = group.members.filter((m) => !selected.has(m.id));
 
   function toggle(id: string) {
     const next = new Set(selected);
@@ -327,6 +348,12 @@ function MembersForm({ group, onDone, onCancel }: { group: SupportGroup; onDone:
         </fieldset>
       )}
       <p className={styles.muted}>Listede yalnızca en az bir kez giriş yapmış personel görünür.</p>
+      {removing.length > 0 && (
+        <p className={styles.notice}>
+          {removing.map((m) => m.name).join(', ')} gruptan çıkarılacak. Bu gruptaki açık talepleri onlardan alınıp
+          {group.assignmentMode === 'NONE' ? ' grup kuyruğuna bırakılacak.' : ' kalan üyelere dağıtılacak.'}
+        </p>
+      )}
       {save.isError && <ErrorMessage error={save.error} />}
       <div className={styles.actions}>
         <button type="submit" disabled={save.isPending || !staff.data}>

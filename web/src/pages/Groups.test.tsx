@@ -49,7 +49,7 @@ describe('GroupsPage', () => {
       list: vi.fn().mockResolvedValue([aGroup()]),
       create: vi.fn().mockResolvedValue(aGroup({ id: 9, name: 'Sunucu ekibi' })),
       setRoutes: vi.fn().mockResolvedValue({}),
-      setMembers: vi.fn().mockResolvedValue(aGroup()),
+      setMembers: vi.fn().mockResolvedValue({ group: aGroup(), releasedTickets: 0 }),
     });
     const api = fakeApi({
       staff: vi.fn().mockResolvedValue([
@@ -80,6 +80,28 @@ describe('GroupsPage', () => {
     await userEvent.click(await within(members).findByRole('checkbox', { name: 'Agent One' }));
     await userEvent.click(within(members).getByRole('button', { name: 'Üyeleri kaydet' }));
     expect(groups.setMembers).toHaveBeenCalledWith(3, ['agent-1']);
+  });
+});
+
+describe('removing group members', () => {
+  it('warns before saving and reports how many open tickets moved', async () => {
+    const groups = fakeGroupsApi({
+      list: vi.fn().mockResolvedValue([
+        aGroup({ assignmentMode: 'ROUND_ROBIN', members: [{ id: 'agent-1', name: 'Agent One', role: 'AGENT' }] }),
+      ]),
+      setMembers: vi.fn().mockResolvedValue({ group: aGroup(), releasedTickets: 2 }),
+    });
+    const api = fakeApi({ staff: vi.fn().mockResolvedValue([{ id: 'agent-1', name: 'Agent One', role: 'AGENT' }]) });
+    renderApp('/groups', { role: 'MANAGER', groups, api });
+
+    const card = await screen.findByRole('listitem', { name: 'Ağ ekibi' });
+    await userEvent.click(within(card).getByRole('button', { name: 'Üyeler' }));
+    await userEvent.click(await within(card).findByRole('checkbox', { name: 'Agent One' }));
+    expect(card).toHaveTextContent('Agent One gruptan çıkarılacak. Bu gruptaki açık talepleri onlardan alınıp kalan üyelere dağıtılacak.');
+
+    await userEvent.click(within(card).getByRole('button', { name: 'Üyeleri kaydet' }));
+    expect(groups.setMembers).toHaveBeenCalledWith(3, []);
+    expect(await within(card).findByRole('status')).toHaveTextContent('2 açık talebi');
   });
 });
 

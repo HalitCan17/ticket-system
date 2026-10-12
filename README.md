@@ -102,7 +102,8 @@ Ayrıntılar: [ADR 0009](docs/adr/0009-observability.md).
   eklenir (gönderilmez). Yönetici şablonları "Hazır yanıtlar" sayfasından ekler, düzenler, siler.
 - **Destek grupları:** talep kategorisine bağlı ekibe düşer (Ağ ekibi, Donanım ekibi…). Yönetici "Gruplar" sayfasında
   grupları, üyeleri ve kategori yönlendirmesini ayarlar; grup isterse talebi üyelerine sırayla ya da en az işi olana
-  otomatik atar. Personel "Grubumun talepleri" kuyruğunu kullanır, talebin grubunu elle de değiştirebilir.
+  otomatik atar. Bir üye gruptan çıkarılınca o gruptaki açık talepleri kalan üyelere dağıtılır (ya da grup kuyruğuna
+  döner). Personel "Grubumun talepleri" kuyruğunu kullanır, talebin grubunu elle de değiştirebilir.
 - **Panel (yönetici):** açık / atanmamış / SLA'sı aşılmış talepler, son 7-30-90 günde açılan ve çözülen, SLA uyum oranı,
   ortalama çözüm süresi, memnuniyet; statü, kategori ve puan dağılımları; ekip tablosu (kişi başına açık iş, SLA aşımı,
   çözülen, memnuniyet) ve oradan kişinin kuyruğuna geçiş.
