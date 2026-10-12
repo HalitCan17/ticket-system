@@ -3,7 +3,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 7** — Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
+> Durum: **Aşama 8** — log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -14,6 +14,7 @@ SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (A
 | Web | React 19, TypeScript, Vite, React Router, TanStack Query, keycloak-js |
 | Mobil | Expo (planlandı) |
 | Kimlik | Keycloak 26.8 (OIDC, JWT) |
+| Loglama / izleme | log4j2 (JSON), OpenTelemetry Java agent, Data Prepper, OpenSearch 3.6 + Dashboards |
 | Altyapı | Docker Compose |
 
 ## Hızlı başlangıç
@@ -31,6 +32,8 @@ Ardından **http://localhost:3000** adresini açıp aşağıdaki yerel kullanıc
 | Backend API | http://localhost:8080 |
 | Keycloak (admin: `admin` / `admin`) | http://localhost:8081 |
 | PostgreSQL (`itsm` / `itsm`) | localhost:5432 |
+| OpenSearch Dashboards (loglar, trace'ler) | http://localhost:5601 |
+| OpenSearch | http://localhost:9200 |
 
 > Keycloak realm'i (`infra/keycloak/itsm-realm.json`) yalnızca Postgres volume'u **ilk oluşturulurken** içe aktarılır.
 > Aşama 4'ten önce oluşturulmuş bir volume'unuz varsa bir kez `docker compose -f infra/docker-compose.yml down -v`
@@ -65,6 +68,20 @@ Web'i geliştirme modunda çalıştırmak (backend ve Keycloak Compose'ta açık
 ```bash
 cd web && npm run dev
 ```
+
+## Loglama ve izleme
+Backend log4j2 ile loglar. Compose'ta her satır JSON'dur (`docker logs itsm-backend-1`). OpenTelemetry Java agent her API
+isteğini bir **trace** olarak (HTTP → servis → SQL span'ları) ve logları aynı `trace_id` ile Data Prepper üzerinden OpenSearch'e
+gönderir.
+
+- **Trace'ler:** http://localhost:5601 → Observability → Traces (veri kaynağı "Data Prepper"). Bir trace'e tıklayınca span zaman
+  çizelgesi ve "View associated logs" açılır.
+- **Loglar:** Discover → `otel-logs-*` (index pattern'i `dashboards-init` servisi otomatik oluşturur).
+- İzleme servisleri kapalı olsa da uygulama çalışır, yalnızca izleme verisi kaybolur.
+- **Yerel geliştirme içindir:** OpenSearch güvenlik eklentisi kapalıdır ve portlar yalnızca `127.0.0.1`'e açıktır.
+- Yığın bu servislerle yaklaşık 2 GB daha fazla bellek kullanır. İlk `up` yaklaşık 2,2 GB imaj indirir (bir kez).
+
+Ayrıntılar: [ADR 0009](docs/adr/0009-observability.md).
 
 ## Web arayüzü
 - Keycloak ile giriş (Authorization Code + PKCE); üst çubukta kullanıcı, rol ve çıkış.
@@ -216,4 +233,5 @@ curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Co
 - [ADR 0006 — Web uygulaması mimarisi](docs/adr/0006-web-app-architecture.md)
 - [ADR 0007 — Uygulama içi bildirimler](docs/adr/0007-in-app-notifications.md)
 - [ADR 0008 — Ticket ekleri](docs/adr/0008-attachments.md)
+- [ADR 0009 — Loglama ve izleme](docs/adr/0009-observability.md)
 - [jBPM spike raporu](docs/jbpm-spike.md)
