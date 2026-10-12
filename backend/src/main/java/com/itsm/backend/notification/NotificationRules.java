@@ -59,6 +59,11 @@ public final class NotificationRules {
                         ticket.getRequesterId(), ticket.getAssigneeId());
     }
 
+    /** A rating goes to the assignee who resolved the ticket (never to the requester who rated). */
+    public static List<Recipient> forRating(Ticket ticket, String actorId) {
+        return recipients(NotificationType.TICKET_RATED, actorId, ticket.getAssigneeId());
+    }
+
     /** SLA breaches go to the assignee (if any) and every manager. */
     public static List<Recipient> forSlaBreach(Ticket ticket, Collection<String> managerIds) {
         Set<String> users = new LinkedHashSet<>();

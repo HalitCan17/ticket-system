@@ -79,7 +79,7 @@ class KeycloakEndToEndTest {
         String agent1 = token("itsm-cli", "agent1");
 
         ResponseEntity<String> created = call(HttpMethod.POST, "/api/tickets", customer1,
-                Map.of("title", "VPN down", "description", "Cannot connect", "priority", "HIGH"));
+                Map.of("title", "VPN down", "description", "Cannot connect", "priority", "HIGH", "category", "NETWORK"));
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         JsonNode ticket = json.readTree(created.getBody());
         assertThat(ticket.get("requesterId").asText()).isEqualTo(subjectOf(customer1));

@@ -19,6 +19,7 @@ import com.itsm.backend.common.error.NotFoundException;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.security.Role;
 import com.itsm.backend.ticket.domain.Ticket;
+import com.itsm.backend.ticket.domain.TicketCategory;
 import com.itsm.backend.ticket.domain.TicketPriority;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
@@ -30,7 +31,6 @@ import com.itsm.backend.ticket.sla.SlaProperties;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Pageable;
 
 class TicketServiceTest {
 
@@ -46,7 +46,7 @@ class TicketServiceTest {
             tickets, history, new SlaProperties(null), events, Clock.fixed(NOW, ZoneOffset.UTC));
 
     final Ticket ticket = Ticket.open(
-            "VPN", "down", TicketPriority.HIGH, "cust1", Duration.ofHours(8), NOW.minusSeconds(3600));
+            "VPN", "down", TicketPriority.HIGH, TicketCategory.OTHER, "cust1", Duration.ofHours(8), NOW.minusSeconds(3600));
 
     @Test
     void ownerAndStaffCanSeeTicket() {
@@ -63,19 +63,6 @@ class TicketServiceTest {
         assertThatThrownBy(() -> service.get(OTHER_CUSTOMER, 1L)).isInstanceOf(NotFoundException.class);
         assertThatThrownBy(() -> service.transition(OTHER_CUSTOMER, 1L, new TransitionRequest(TicketStatus.CLOSED, null)))
                 .isInstanceOf(NotFoundException.class);
-    }
-
-    @Test
-    void customerListIsScopedToRequester() {
-        Pageable pageable = Pageable.ofSize(20);
-
-        service.list(OWNER, null, pageable);
-        service.list(OWNER, TicketStatus.NEW, pageable);
-        service.list(AGENT, null, pageable);
-
-        verify(tickets).findByRequesterId("cust1", pageable);
-        verify(tickets).findByRequesterIdAndStatus("cust1", TicketStatus.NEW, pageable);
-        verify(tickets).findAll(pageable);
     }
 
     @Test

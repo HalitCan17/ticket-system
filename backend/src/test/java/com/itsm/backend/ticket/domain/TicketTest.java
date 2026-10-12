@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.time.Instant;
 
+import com.itsm.backend.common.error.ApiException;
 import com.itsm.backend.common.error.ConflictException;
+import com.itsm.backend.common.error.ForbiddenException;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.security.Role;
 import org.junit.jupiter.api.Test;
@@ -103,7 +105,69 @@ class TicketTest {
         assertThat(ticket.getStatus()).isEqualTo(TicketStatus.NEW);
     }
 
+    @Test
+    void requesterCanWithdrawNewTicket() {
+        Ticket ticket = newTicket();
+
+        ticket.transitionTo(TicketStatus.CLOSED, CUSTOMER, null, T0.plusSeconds(60));
+
+        assertThat(ticket.getStatus()).isEqualTo(TicketStatus.CLOSED);
+        assertThat(ticket.getClosedAt()).isEqualTo(T0.plusSeconds(60));
+        assertThat(ticket.getSlaState()).isEqualTo(SlaState.STOPPED);
+        // A withdrawn ticket was never resolved, so there is nothing to rate.
+        assertThat(ticket.canBeRatedBy(CUSTOMER)).isFalse();
+    }
+
+    @Test
+    void requesterRatesResolvedTicketOnce() {
+        Ticket ticket = resolvedTicket();
+        assertThat(ticket.canBeRatedBy(CUSTOMER)).isTrue();
+        assertThat(ticket.canBeRatedBy(AGENT)).isFalse();
+
+        ticket.rate(CUSTOMER, 4, "  Hızlı çözüldü ", T0.plusSeconds(300));
+
+        assertThat(ticket.getRating()).isEqualTo(4);
+        assertThat(ticket.getRatingComment()).isEqualTo("Hızlı çözüldü");
+        assertThat(ticket.getRatedAt()).isEqualTo(T0.plusSeconds(300));
+        assertThat(ticket.canBeRatedBy(CUSTOMER)).isFalse();
+        assertThatThrownBy(() -> ticket.rate(CUSTOMER, 5, null, T0.plusSeconds(400)))
+                .isInstanceOf(ConflictException.class)
+                .extracting(e -> ((ApiException) e).getCode()).isEqualTo("ALREADY_RATED");
+    }
+
+    @Test
+    void closedAfterResolutionCanStillBeRatedButBlankCommentIsDropped() {
+        Ticket ticket = resolvedTicket();
+        ticket.transitionTo(TicketStatus.CLOSED, CUSTOMER, null, T0.plusSeconds(200));
+
+        ticket.rate(CUSTOMER, 2, "   ", T0.plusSeconds(300));
+
+        assertThat(ticket.getRating()).isEqualTo(2);
+        assertThat(ticket.getRatingComment()).isNull();
+    }
+
+    @Test
+    void unresolvedTicketCannotBeRatedAndOnlyTheRequesterMayRate() {
+        Ticket open = newTicket();
+        assertThatThrownBy(() -> open.rate(CUSTOMER, 5, null, T0))
+                .isInstanceOf(ConflictException.class)
+                .extracting(e -> ((ApiException) e).getCode()).isEqualTo("TICKET_NOT_RESOLVED");
+
+        Ticket resolved = resolvedTicket();
+        assertThatThrownBy(() -> resolved.rate(AGENT, 5, null, T0))
+                .isInstanceOf(ForbiddenException.class)
+                .extracting(e -> ((ApiException) e).getCode()).isEqualTo("RATING_NOT_ALLOWED");
+        assertThat(resolved.getRating()).isNull();
+    }
+
+    private static Ticket resolvedTicket() {
+        Ticket ticket = newTicket();
+        ticket.transitionTo(TicketStatus.IN_PROGRESS, AGENT, null, T0.plusSeconds(60));
+        ticket.transitionTo(TicketStatus.RESOLVED, AGENT, "Sürücü güncellendi", T0.plusSeconds(120));
+        return ticket;
+    }
+
     private static Ticket newTicket() {
-        return Ticket.open("VPN down", "Cannot connect", TicketPriority.HIGH, "cust1", Duration.ofHours(8), T0);
+        return Ticket.open("VPN down", "Cannot connect", TicketPriority.HIGH, TicketCategory.OTHER, "cust1", Duration.ofHours(8), T0);
     }
 }

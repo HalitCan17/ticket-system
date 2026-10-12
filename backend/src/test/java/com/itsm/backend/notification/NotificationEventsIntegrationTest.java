@@ -88,7 +88,7 @@ class NotificationEventsIntegrationTest {
 
     private long createTicket() throws Exception {
         String body = mvc.perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"VPN\",\"description\":\"down\",\"priority\":\"HIGH\"}")
+                        .content("{\"title\":\"VPN\",\"description\":\"down\",\"priority\":\"HIGH\",\"category\":\"OTHER\"}")
                         .with(TestTokens.user(customer, "CUSTOMER")))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();

@@ -3,6 +3,7 @@ package com.itsm.backend.ticket.dto;
 import java.time.Instant;
 import java.util.Set;
 
+import com.itsm.backend.ticket.domain.TicketCategory;
 import com.itsm.backend.ticket.domain.TicketPriority;
 import com.itsm.backend.ticket.domain.TicketStatus;
 
@@ -13,6 +14,8 @@ import com.itsm.backend.ticket.domain.TicketStatus;
  * @param allowedTransitions statuses the caller may move this ticket to; lets clients show only valid actions
  * @param sla                resolution-time SLA as of the response time
  * @param autoCloseAt        when a RESOLVED ticket will be closed automatically; null in other statuses
+ * @param rating             the requester's satisfaction rating; null until rated
+ * @param canRate            whether the caller may rate the ticket now
  */
 public record TicketResponse(
         Long id,
@@ -20,6 +23,7 @@ public record TicketResponse(
         String description,
         TicketStatus status,
         TicketPriority priority,
+        TicketCategory category,
         String requesterId,
         String requesterName,
         String assigneeId,
@@ -31,5 +35,7 @@ public record TicketResponse(
         Instant closedAt,
         Set<TicketStatus> allowedTransitions,
         SlaResponse sla,
-        Instant autoCloseAt) {
+        Instant autoCloseAt,
+        RatingResponse rating,
+        boolean canRate) {
 }

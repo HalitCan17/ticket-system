@@ -17,6 +17,7 @@ import java.util.Optional;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.security.Role;
 import com.itsm.backend.ticket.domain.Ticket;
+import com.itsm.backend.ticket.domain.TicketCategory;
 import com.itsm.backend.ticket.domain.TicketPriority;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
@@ -117,7 +118,7 @@ class TicketAutoCloseServiceTest {
     }
 
     private static Ticket resolvedAt(Instant resolvedAt) {
-        Ticket ticket = Ticket.open("t", "d", TicketPriority.LOW, "cust1", Duration.ofHours(72),
+        Ticket ticket = Ticket.open("t", "d", TicketPriority.LOW, TicketCategory.OTHER, "cust1", Duration.ofHours(72),
                 resolvedAt.minus(Duration.ofHours(1)));
         ticket.transitionTo(TicketStatus.IN_PROGRESS, AGENT, null, resolvedAt.minus(Duration.ofMinutes(30)));
         ticket.transitionTo(TicketStatus.RESOLVED, AGENT, "fixed", resolvedAt);

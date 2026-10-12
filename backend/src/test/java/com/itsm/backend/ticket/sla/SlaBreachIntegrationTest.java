@@ -102,7 +102,7 @@ class SlaBreachIntegrationTest {
 
     private Instant openCriticalTicketStartedBy(String agentId) throws Exception {
         String body = mvc.perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Sunucu çöktü\",\"description\":\"x\",\"priority\":\"CRITICAL\"}")
+                        .content("{\"title\":\"Sunucu çöktü\",\"description\":\"x\",\"priority\":\"CRITICAL\",\"category\":\"OTHER\"}")
                         .with(TestTokens.user(customer, "CUSTOMER")))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();

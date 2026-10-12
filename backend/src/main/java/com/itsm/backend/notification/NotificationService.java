@@ -12,6 +12,7 @@ import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.event.TicketCommentAddedEvent;
+import com.itsm.backend.ticket.event.TicketRatedEvent;
 import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
 import com.itsm.backend.user.UserDirectory;
 import org.springframework.context.event.EventListener;
@@ -54,6 +55,11 @@ public class NotificationService {
         TicketAttachment attachment = event.attachment();
         create(event.ticket(), NotificationRules.forAttachment(event.ticket(), attachment.getVisibility(),
                 attachment.getUploaderId()), attachment.getUploaderId(), null);
+    }
+
+    @EventListener
+    public void onRated(TicketRatedEvent event) {
+        create(event.ticket(), NotificationRules.forRating(event.ticket(), event.actorId()), event.actorId(), null);
     }
 
     /** Notifies the assignee and all known managers that the ticket exceeded its SLA. */

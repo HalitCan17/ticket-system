@@ -12,5 +12,7 @@ public enum NotificationType {
     /** The ticket exceeded its resolution SLA. */
     SLA_BREACHED,
     /** A file was attached; internal attachments are reported to staff only. */
-    ATTACHMENT_ADDED
+    ATTACHMENT_ADDED,
+    /** The requester rated the resolution (score in the ticket). */
+    TICKET_RATED
 }

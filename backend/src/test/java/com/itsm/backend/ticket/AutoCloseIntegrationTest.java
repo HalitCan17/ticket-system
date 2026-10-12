@@ -98,7 +98,7 @@ class AutoCloseIntegrationTest {
 
     private long createTicket() throws Exception {
         String body = perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Printer\",\"description\":\"Jammed\",\"priority\":\"LOW\"}"),
+                        .content("{\"title\":\"Printer\",\"description\":\"Jammed\",\"priority\":\"LOW\",\"category\":\"OTHER\"}"),
                 customer, "CUSTOMER")
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();

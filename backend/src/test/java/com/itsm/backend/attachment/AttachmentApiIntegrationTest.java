@@ -229,7 +229,7 @@ class AttachmentApiIntegrationTest {
 
     private long createTicket() throws Exception {
         String body = perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"VPN\",\"description\":\"down\",\"priority\":\"HIGH\"}"), customer, "CUSTOMER")
+                        .content("{\"title\":\"VPN\",\"description\":\"down\",\"priority\":\"HIGH\",\"category\":\"OTHER\"}"), customer, "CUSTOMER")
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return id(body);

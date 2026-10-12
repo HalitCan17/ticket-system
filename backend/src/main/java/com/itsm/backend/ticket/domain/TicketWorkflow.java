@@ -26,6 +26,7 @@ import com.itsm.backend.security.Role;
  * NEW → IN_PROGRESS ⇄ WAITING_FOR_CUSTOMER
  * IN_PROGRESS → RESOLVED (resolution note required)
  * RESOLVED → IN_PROGRESS (requester's objection, reason required) | RESOLVED → CLOSED
+ * NEW → CLOSED (requester withdraws a ticket nobody has started; note optional)
  * </pre>
  */
 public final class TicketWorkflow {
@@ -53,7 +54,8 @@ public final class TicketWorkflow {
             new Transition(WAITING_FOR_CUSTOMER, IN_PROGRESS), new Rule(STAFF, null),
             new Transition(IN_PROGRESS, RESOLVED), new Rule(STAFF, RESOLUTION_NOTE_REQUIRED),
             new Transition(RESOLVED, IN_PROGRESS), new Rule(REQUESTER_OR_MANAGER, REOPEN_REASON_REQUIRED),
-            new Transition(RESOLVED, CLOSED), new Rule(REQUESTER_OR_MANAGER, null));
+            new Transition(RESOLVED, CLOSED), new Rule(REQUESTER_OR_MANAGER, null),
+            new Transition(NEW, CLOSED), new Rule(EnumSet.of(Party.REQUESTER), null));
 
     private TicketWorkflow() {
     }

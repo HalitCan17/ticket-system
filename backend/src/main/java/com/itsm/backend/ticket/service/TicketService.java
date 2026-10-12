@@ -10,9 +10,12 @@ import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
 import com.itsm.backend.ticket.dto.CreateTicketRequest;
+import com.itsm.backend.ticket.dto.RateTicketRequest;
 import com.itsm.backend.ticket.dto.TransitionRequest;
+import com.itsm.backend.ticket.event.TicketRatedEvent;
 import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
 import com.itsm.backend.ticket.repository.TicketRepository;
+import com.itsm.backend.ticket.repository.TicketSpecifications;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
 import com.itsm.backend.ticket.sla.SlaProperties;
 import org.slf4j.Logger;
@@ -47,7 +50,7 @@ public class TicketService {
     public Ticket create(CurrentUser user, CreateTicketRequest request) {
         Instant now = clock.instant();
         Ticket ticket = tickets.save(Ticket.open(request.title().strip(), request.description().strip(),
-                request.priority(), user.id(), sla.targetFor(request.priority()), now));
+                request.priority(), request.category(), user.id(), sla.targetFor(request.priority()), now));
         history.save(new TicketStatusHistory(ticket.getId(), null, TicketStatus.NEW, user.id(), null, now));
         log.info("Ticket {} created by {} with priority {}", ticket.getId(), user.id(), ticket.getPriority());
         return ticket;
@@ -55,13 +58,8 @@ public class TicketService {
 
     /** Customers see only their own tickets; staff see all. */
     @Transactional(readOnly = true)
-    public Page<Ticket> list(CurrentUser user, TicketStatus status, Pageable pageable) {
-        if (user.isStaff()) {
-            return status == null ? tickets.findAll(pageable) : tickets.findByStatus(status, pageable);
-        }
-        return status == null
-                ? tickets.findByRequesterId(user.id(), pageable)
-                : tickets.findByRequesterIdAndStatus(user.id(), status, pageable);
+    public Page<Ticket> list(CurrentUser user, TicketSearch search, Pageable pageable) {
+        return tickets.findAll(TicketSpecifications.matching(search, user.isStaff() ? null : user.id()), pageable);
     }
 
     @Transactional(readOnly = true)
@@ -79,6 +77,16 @@ public class TicketService {
         history.save(new TicketStatusHistory(ticket.getId(), previous, ticket.getStatus(), user.id(), note, now));
         events.publishEvent(new TicketStatusChangedEvent(ticket, previous, ticket.getStatus(), user.id()));
         log.info("Ticket {} moved {} -> {} by {}", ticket.getId(), previous, ticket.getStatus(), user.id());
+        return ticket;
+    }
+
+    /** The requester rates a resolved ticket once; the assignee is notified. */
+    @Transactional
+    public Ticket rate(CurrentUser user, long id, RateTicketRequest request) {
+        Ticket ticket = getVisibleTicket(user, id);
+        ticket.rate(user, request.score(), request.comment(), clock.instant());
+        events.publishEvent(new TicketRatedEvent(ticket, user.id()));
+        log.info("Ticket {} rated {} by {}", ticket.getId(), request.score(), user.id());
         return ticket;
     }
 

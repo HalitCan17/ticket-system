@@ -7,18 +7,23 @@ import java.util.Map;
 import com.itsm.backend.common.web.PageResponse;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
+import com.itsm.backend.ticket.domain.TicketCategory;
+import com.itsm.backend.ticket.domain.TicketScope;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
 import com.itsm.backend.ticket.dto.CreateTicketRequest;
+import com.itsm.backend.ticket.dto.RateTicketRequest;
 import com.itsm.backend.ticket.dto.StatusHistoryResponse;
 import com.itsm.backend.ticket.dto.TicketResponse;
 import com.itsm.backend.ticket.dto.TransitionRequest;
 import com.itsm.backend.ticket.service.TicketResponseAssembler;
+import com.itsm.backend.ticket.service.TicketSearch;
 import com.itsm.backend.ticket.service.TicketService;
 import com.itsm.backend.user.UserDirectory;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
@@ -60,9 +65,13 @@ public class TicketController {
     public PageResponse<TicketResponse> list(
             CurrentUser user,
             @RequestParam(required = false) TicketStatus status,
+            @RequestParam(required = false) TicketScope scope,
+            @RequestParam(required = false) TicketCategory category,
+            @RequestParam(required = false) @Size(max = 200) String q,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return responses.toPage(ticketService.list(user, status, PageRequest.of(page, size, NEWEST_FIRST)), user);
+        TicketSearch search = new TicketSearch(q, scope, status, category);
+        return responses.toPage(ticketService.list(user, search, PageRequest.of(page, size, NEWEST_FIRST)), user);
     }
 
     @GetMapping("/{id}")
@@ -74,6 +83,12 @@ public class TicketController {
     public TicketResponse transition(CurrentUser user, @PathVariable long id,
             @Valid @RequestBody TransitionRequest request) {
         return responses.toResponse(ticketService.transition(user, id, request), user);
+    }
+
+    @PostMapping("/{id}/rating")
+    public TicketResponse rate(CurrentUser user, @PathVariable long id,
+            @Valid @RequestBody RateTicketRequest request) {
+        return responses.toResponse(ticketService.rate(user, id, request), user);
     }
 
     @GetMapping("/{id}/history")

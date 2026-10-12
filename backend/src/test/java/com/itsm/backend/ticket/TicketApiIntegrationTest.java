@@ -2,7 +2,6 @@ package com.itsm.backend.ticket;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
@@ -58,7 +57,7 @@ class TicketApiIntegrationTest {
         perform(get("/api/tickets/{id}", id), customer, "CUSTOMER")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("NEW"))
-                .andExpect(jsonPath("$.allowedTransitions", empty()));
+                .andExpect(jsonPath("$.allowedTransitions", containsInAnyOrder("CLOSED"))); // withdraw
 
         transition(id, agent, "AGENT", "IN_PROGRESS", null)
                 .andExpect(status().isOk())
@@ -142,7 +141,7 @@ class TicketApiIntegrationTest {
     @Test
     void createReturnsLocationAndNewTicket() throws Exception {
         perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\" Printer \",\"description\":\"Jammed\",\"priority\":\"LOW\"}"),
+                        .content("{\"title\":\" Printer \",\"description\":\"Jammed\",\"priority\":\"LOW\",\"category\":\"OTHER\"}"),
                 customer, "CUSTOMER")
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", matchesPattern(".*/api/tickets/\\d+")))
@@ -215,14 +214,14 @@ class TicketApiIntegrationTest {
     @Test
     void invalidInputIsRejectedWithProblemDetail() throws Exception {
         perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"\",\"description\":\"x\",\"priority\":\"LOW\"}"),
+                        .content("{\"title\":\"\",\"description\":\"x\",\"priority\":\"LOW\",\"category\":\"OTHER\"}"),
                 customer, "CUSTOMER")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.errors[0].field").value("title"));
 
         perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"t\",\"description\":\"x\",\"priority\":\"URGENT\"}"),
+                        .content("{\"title\":\"t\",\"description\":\"x\",\"priority\":\"URGENT\",\"category\":\"OTHER\"}"),
                 customer, "CUSTOMER")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
@@ -237,7 +236,7 @@ class TicketApiIntegrationTest {
 
     private long createTicket(String requester) throws Exception {
         String body = perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"VPN down\",\"description\":\"Cannot connect\",\"priority\":\"HIGH\"}"),
+                        .content("{\"title\":\"VPN down\",\"description\":\"Cannot connect\",\"priority\":\"HIGH\",\"category\":\"OTHER\"}"),
                 requester, "CUSTOMER")
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();

@@ -51,7 +51,8 @@ class TicketWorkflowTest {
             List.of(WAITING_FOR_CUSTOMER, IN_PROGRESS), EnumSet.of(Actor.AGENT, Actor.MANAGER),
             List.of(IN_PROGRESS, RESOLVED), EnumSet.of(Actor.AGENT, Actor.MANAGER),
             List.of(RESOLVED, IN_PROGRESS), EnumSet.of(Actor.REQUESTER, Actor.MANAGER),
-            List.of(RESOLVED, CLOSED), EnumSet.of(Actor.REQUESTER, Actor.MANAGER));
+            List.of(RESOLVED, CLOSED), EnumSet.of(Actor.REQUESTER, Actor.MANAGER),
+            List.of(NEW, CLOSED), EnumSet.of(Actor.REQUESTER));
 
     static Stream<Arguments> everyTransitionAndActor() {
         List<Arguments> args = new ArrayList<>();
@@ -107,6 +108,16 @@ class TicketWorkflowTest {
                 .isInstanceOf(ForbiddenException.class);
         assertThatThrownBy(() -> TicketWorkflow.validate(RESOLVED, IN_PROGRESS, otherCustomer, REQUESTER_ID, "why"))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void onlyTheRequesterCanWithdrawANewTicketWithoutANote() {
+        assertThatCode(() -> TicketWorkflow.validate(NEW, CLOSED, Actor.REQUESTER.user, REQUESTER_ID, null))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> TicketWorkflow.validate(NEW, CLOSED, new CurrentUser("cust2", Role.CUSTOMER),
+                REQUESTER_ID, null)).isInstanceOf(ForbiddenException.class);
+        assertThat(TicketWorkflow.allowedTargets(NEW, Actor.REQUESTER.user, REQUESTER_ID)).containsExactly(CLOSED);
+        assertThat(TicketWorkflow.allowedTargets(NEW, Actor.MANAGER.user, REQUESTER_ID)).containsExactly(IN_PROGRESS);
     }
 
     @ParameterizedTest

@@ -17,6 +17,7 @@ import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.security.Role;
 import com.itsm.backend.ticket.domain.CommentVisibility;
 import com.itsm.backend.ticket.domain.Ticket;
+import com.itsm.backend.ticket.domain.TicketCategory;
 import com.itsm.backend.ticket.domain.TicketComment;
 import com.itsm.backend.ticket.domain.TicketPriority;
 import com.itsm.backend.ticket.domain.TicketStatus;
@@ -53,6 +54,13 @@ class NotificationRulesTest {
 
         assertThat(NotificationRules.forStatusChange(ticket, TicketStatus.CLOSED, MANAGER))
                 .containsExactly(new Recipient(CUSTOMER, STATUS_CHANGED), new Recipient(AGENT, STATUS_CHANGED));
+    }
+
+    @Test
+    void ratingNotifiesOnlyTheAssignee() {
+        assertThat(NotificationRules.forRating(assignedTo(AGENT), CUSTOMER))
+                .containsExactly(new Recipient(AGENT, NotificationType.TICKET_RATED));
+        assertThat(NotificationRules.forRating(newTicket(), CUSTOMER)).isEmpty();
     }
 
     @Test
@@ -115,7 +123,7 @@ class NotificationRulesTest {
     }
 
     private static Ticket newTicket() {
-        return Ticket.open("VPN", "down", TicketPriority.HIGH, CUSTOMER, Duration.ofHours(8), T0);
+        return Ticket.open("VPN", "down", TicketPriority.HIGH, TicketCategory.OTHER, CUSTOMER, Duration.ofHours(8), T0);
     }
 
     private static Ticket assignedTo(String agentId) {

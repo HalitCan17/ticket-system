@@ -4,20 +4,14 @@ import java.time.Instant;
 import java.util.List;
 
 import com.itsm.backend.ticket.domain.Ticket;
-import com.itsm.backend.ticket.domain.TicketStatus;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface TicketRepository extends JpaRepository<Ticket, Long> {
-
-    Page<Ticket> findByStatus(TicketStatus status, Pageable pageable);
-
-    Page<Ticket> findByRequesterId(String requesterId, Pageable pageable);
-
-    Page<Ticket> findByRequesterIdAndStatus(String requesterId, TicketStatus status, Pageable pageable);
+/** List queries use {@link TicketSpecifications}. */
+public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecificationExecutor<Ticket> {
 
     /**
      * Ids of RESOLVED tickets resolved at or before {@code cutoff}, in id order after {@code afterId}

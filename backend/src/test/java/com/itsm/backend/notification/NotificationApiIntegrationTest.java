@@ -108,7 +108,7 @@ class NotificationApiIntegrationTest {
     private long createTicket(String title) throws Exception {
         String body = perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of(
-                                "title", title, "description", "x", "priority", "LOW"))),
+                                "title", title, "description", "x", "priority", "LOW", "category", "OTHER"))),
                 customer, "CUSTOMER")
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();

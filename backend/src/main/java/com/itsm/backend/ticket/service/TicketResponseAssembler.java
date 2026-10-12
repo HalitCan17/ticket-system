@@ -11,6 +11,7 @@ import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketWorkflow;
+import com.itsm.backend.ticket.dto.RatingResponse;
 import com.itsm.backend.ticket.dto.SlaResponse;
 import com.itsm.backend.ticket.dto.TicketResponse;
 import com.itsm.backend.user.UserDirectory;
@@ -52,6 +53,7 @@ public class TicketResponseAssembler {
                 ticket.getDescription(),
                 ticket.getStatus(),
                 ticket.getPriority(),
+                ticket.getCategory(),
                 ticket.getRequesterId(),
                 names.get(ticket.getRequesterId()),
                 ticket.getAssigneeId(),
@@ -63,7 +65,9 @@ public class TicketResponseAssembler {
                 ticket.getClosedAt(),
                 TicketWorkflow.allowedTargets(ticket.getStatus(), viewer, ticket.getRequesterId()),
                 SlaResponse.of(ticket.getSlaState(), ticket.getSlaClock(), now),
-                autoCloseAt);
+                autoCloseAt,
+                RatingResponse.of(ticket),
+                ticket.canBeRatedBy(viewer));
     }
 
     private static List<String> userIds(List<Ticket> tickets) {

@@ -3,6 +3,8 @@ package com.itsm.backend.ticket.domain;
 import java.time.Duration;
 import java.time.Instant;
 
+import com.itsm.backend.common.error.ConflictException;
+import com.itsm.backend.common.error.ForbiddenException;
 import com.itsm.backend.security.CurrentUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,6 +37,10 @@ public class Ticket {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private TicketPriority priority;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private TicketCategory category;
 
     @Column(name = "requester_id", nullable = false, length = 64)
     private String requesterId;
@@ -69,6 +75,16 @@ public class Ticket {
     @Column(name = "sla_breach_notified_at")
     private Instant slaBreachNotifiedAt;
 
+    /** Requester's satisfaction score 1–5; null until rated. */
+    @Column
+    private Short rating;
+
+    @Column(name = "rating_comment", columnDefinition = "text")
+    private String ratingComment;
+
+    @Column(name = "rated_at")
+    private Instant ratedAt;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -76,12 +92,13 @@ public class Ticket {
     protected Ticket() {
     }
 
-    public static Ticket open(String title, String description, TicketPriority priority, String requesterId,
-            Duration slaTarget, Instant now) {
+    public static Ticket open(String title, String description, TicketPriority priority, TicketCategory category,
+            String requesterId, Duration slaTarget, Instant now) {
         Ticket ticket = new Ticket();
         ticket.title = title;
         ticket.description = description;
         ticket.priority = priority;
+        ticket.category = category;
         ticket.requesterId = requesterId;
         ticket.status = TicketStatus.NEW;
         ticket.createdAt = now;
@@ -131,6 +148,42 @@ public class Ticket {
         closedAt = now;
         updatedAt = now;
         updateSlaClock(now);
+    }
+
+    /**
+     * Whether {@code user} may rate this ticket now: only the requester, only once, and only a ticket that
+     * was actually resolved (RESOLVED, or CLOSED after a resolution — a withdrawn ticket has no resolution).
+     */
+    public boolean canBeRatedBy(CurrentUser user) {
+        return user.id().equals(requesterId) && rating == null && isResolved();
+    }
+
+    /**
+     * Records the requester's satisfaction score.
+     *
+     * @throws ForbiddenException if {@code user} is not the requester ({@code RATING_NOT_ALLOWED})
+     * @throws ConflictException  if already rated ({@code ALREADY_RATED}) or not resolved ({@code TICKET_NOT_RESOLVED})
+     */
+    public void rate(CurrentUser user, int score, String comment, Instant now) {
+        if (!user.id().equals(requesterId)) {
+            throw new ForbiddenException("RATING_NOT_ALLOWED", "Only the requester can rate this ticket.");
+        }
+        if (rating != null) {
+            throw new ConflictException("ALREADY_RATED", "This ticket has already been rated.");
+        }
+        if (!isResolved()) {
+            throw new ConflictException("TICKET_NOT_RESOLVED", "Only resolved tickets can be rated.");
+        }
+        if (score < 1 || score > 5) {
+            throw new IllegalArgumentException("score must be between 1 and 5: " + score);
+        }
+        rating = (short) score;
+        ratingComment = comment == null || comment.isBlank() ? null : comment.strip();
+        ratedAt = now;
+    }
+
+    private boolean isResolved() {
+        return (status == TicketStatus.RESOLVED || status == TicketStatus.CLOSED) && resolutionNote != null;
     }
 
     /** An SLA breach is notified once per ticket, also if an objection later resumes the clock. */
@@ -188,6 +241,22 @@ public class Ticket {
 
     public TicketPriority getPriority() {
         return priority;
+    }
+
+    public TicketCategory getCategory() {
+        return category;
+    }
+
+    public Integer getRating() {
+        return rating == null ? null : rating.intValue();
+    }
+
+    public String getRatingComment() {
+        return ratingComment;
+    }
+
+    public Instant getRatedAt() {
+        return ratedAt;
     }
 
     public String getRequesterId() {

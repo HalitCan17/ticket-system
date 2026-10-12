@@ -100,7 +100,7 @@ class TicketCommentApiIntegrationTest {
 
     private long createTicket() throws Exception {
         String body = perform(post("/api/tickets").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"VPN down\",\"description\":\"Cannot connect\",\"priority\":\"HIGH\"}"),
+                        .content("{\"title\":\"VPN down\",\"description\":\"Cannot connect\",\"priority\":\"HIGH\",\"category\":\"OTHER\"}"),
                 customer, "CUSTOMER")
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();

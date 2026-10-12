@@ -18,6 +18,7 @@ import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.security.Role;
 import com.itsm.backend.ticket.domain.CommentVisibility;
 import com.itsm.backend.ticket.domain.Ticket;
+import com.itsm.backend.ticket.domain.TicketCategory;
 import com.itsm.backend.ticket.domain.TicketPriority;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.dto.CreateCommentRequest;
@@ -38,7 +39,7 @@ class TicketCommentServiceTest {
     final TicketCommentService service =
             new TicketCommentService(ticketService, comments, events, Clock.fixed(NOW, ZoneOffset.UTC));
 
-    final Ticket ticket = Ticket.open("VPN", "down", TicketPriority.HIGH, "cust1", Duration.ofHours(8), NOW);
+    final Ticket ticket = Ticket.open("VPN", "down", TicketPriority.HIGH, TicketCategory.OTHER, "cust1", Duration.ofHours(8), NOW);
 
     @Test
     void customerListsOnlyExternalComments() {
