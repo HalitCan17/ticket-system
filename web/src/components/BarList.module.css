@@ -1,0 +1,48 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 9rem) 1fr 3rem;
+  align-items: center;
+  gap: var(--space-3);
+  /* Bigger than the bar itself, so hovering anywhere on the row shows the tooltip. */
+  padding: 2px 0;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track {
+  height: 12px;
+}
+
+/* Thin mark, rounded data end, anchored to the baseline (left). */
+.bar {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  background: var(--primary);
+  border-radius: 0 4px 4px 0;
+}
+
+.row:hover .bar {
+  background: var(--primary-hover);
+}
+
+.value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}

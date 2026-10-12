@@ -1,0 +1,159 @@
+.page {
+  max-width: 72rem;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.toolbar h1 {
+  margin: 0;
+}
+
+.periods {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.period,
+.periodActive {
+  border: none;
+  border-radius: 0;
+  padding: var(--space-1) var(--space-3);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.period + .period,
+.period + .periodActive,
+.periodActive + .period {
+  border-left: 1px solid var(--border);
+}
+
+.period:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.periodActive,
+.periodActive:hover:not(:disabled) {
+  background: var(--primary);
+  color: #fff;
+}
+
+.sectionTitle {
+  margin: var(--space-6) 0 var(--space-3);
+  font-size: 1rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.tileLink:hover {
+  border-color: var(--primary);
+}
+
+.tileLabel {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.tileValue {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tileHint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.card {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+}
+
+.card figcaption {
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: var(--bg);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--text-muted);
+}

@@ -29,7 +29,8 @@ function parseCategory(value: string | null): TicketCategory | undefined {
   return CATEGORY_ORDER.find((category) => category === value);
 }
 
-type Queue = 'me' | 'unassigned';
+/** 'me', 'unassigned' or a user id (from the dashboard's team table). */
+type Queue = string;
 
 const QUEUES: { value: Queue | undefined; label: string }[] = [
   { value: undefined, label: 'Herkesin' },
@@ -38,7 +39,7 @@ const QUEUES: { value: Queue | undefined; label: string }[] = [
 ];
 
 function parseQueue(value: string | null): Queue | undefined {
-  return value === 'me' || value === 'unassigned' ? value : undefined;
+  return value?.trim() ? value.trim() : undefined;
 }
 
 /** The URL omits the default tab (OPEN). */
@@ -138,6 +139,19 @@ export function TicketListPage() {
 
       {staff && (
         <div className={styles.filters}>
+          {filters.queue && filters.queue !== 'me' && filters.queue !== 'unassigned' && (
+            <span className={styles.personQueue}>
+              Kuyruk: {tickets.data?.items[0]?.assigneeName ?? 'seçili kişi'}
+              <button
+                type="button"
+                className="secondary"
+                aria-label="Kişi filtresini kaldır"
+                onClick={() => update({ queue: undefined })}
+              >
+                ×
+              </button>
+            </span>
+          )}
           <div className={styles.segmented} role="group" aria-label="İş kuyruğu">
             {QUEUES.map((q) => (
               <button

@@ -18,6 +18,7 @@ export function Layout() {
             Talepler
           </NavLink>
           <NavLink to="/tickets/new">Yeni talep</NavLink>
+          {user.role === 'MANAGER' && <NavLink to="/dashboard">Panel</NavLink>}
           {user.role === 'MANAGER' && <NavLink to="/canned-responses">Hazır yanıtlar</NavLink>}
         </nav>
         <div className={styles.user}>

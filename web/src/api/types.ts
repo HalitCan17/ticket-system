@@ -137,6 +137,33 @@ export interface CannedResponseRequest {
   visibility: CommentVisibility;
 }
 
+/** Manager summary; counts per status/category keyed by the enum name. */
+export interface ReportSummary {
+  days: number;
+  from: string;
+  to: string;
+  statusCounts: Record<string, number>;
+  openTickets: number;
+  unassignedOpen: number;
+  breachedOpen: number;
+  created: number;
+  resolution: { resolved: number; withinSla: number; withinSlaRate: number | null; avgResolveSeconds: number | null };
+  /** distribution[0] = number of 1-star ratings */
+  satisfaction: { count: number; average: number | null; distribution: number[] };
+  categories: Record<string, number>;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: Role | null;
+  openWork: number;
+  breachedOpen: number;
+  resolved: number;
+  ratings: number;
+  averageRating: number | null;
+}
+
 export interface StaffMember {
   id: string;
   name: string;

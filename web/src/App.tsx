@@ -5,10 +5,12 @@ import { ApiContext } from './api/ApiContext.tsx';
 import { cannedResponsesApi } from './api/cannedResponses.ts';
 import { ApiError, createApiClient } from './api/client.ts';
 import { notificationsApi } from './api/notifications.ts';
+import { reportsApi } from './api/reports.ts';
 import { ticketsApi } from './api/tickets.ts';
 import { useAuth } from './auth/AuthContext.tsx';
 import { Layout } from './components/Layout.tsx';
 import { CannedResponsesPage } from './pages/CannedResponsesPage.tsx';
+import { DashboardPage } from './pages/DashboardPage.tsx';
 import { NewTicketPage } from './pages/NewTicketPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { TicketDetailPage } from './pages/TicketDetailPage.tsx';
@@ -24,6 +26,7 @@ export const routes: RouteObject[] = [
       { path: 'tickets/new', element: <NewTicketPage /> },
       { path: 'tickets/:id', element: <TicketDetailPage /> },
       { path: 'canned-responses', element: <CannedResponsesPage /> },
+      { path: 'dashboard', element: <DashboardPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
@@ -50,6 +53,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       tickets: ticketsApi(client),
       notifications: notificationsApi(client),
       cannedResponses: cannedResponsesApi(client),
+      reports: reportsApi(client),
     };
   }, [getToken]);
   const [queryClient] = useState(createQueryClient);

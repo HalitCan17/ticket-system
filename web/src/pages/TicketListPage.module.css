@@ -159,3 +159,15 @@
 .segmentActive:hover:not(:disabled) {
   background: var(--primary-hover);
 }
+
+.personQueue {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+.personQueue button {
+  padding: 0 var(--space-2);
+  line-height: 1.6;
+}
