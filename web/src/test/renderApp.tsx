@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { vi } from 'vitest';
 import { createQueryClient, routes } from '../App.tsx';
 import { ApiContext } from '../api/ApiContext.tsx';
+import type { CannedResponsesApi } from '../api/cannedResponses.ts';
 import type { NotificationsApi } from '../api/notifications.ts';
 import type { TicketsApi } from '../api/tickets.ts';
 import type { Role } from '../api/types.ts';
@@ -49,10 +50,21 @@ export function fakeNotificationsApi(overrides: Partial<NotificationsApi> = {}):
   };
 }
 
+/** A CannedResponsesApi with no templates; override what a test needs. */
+export function fakeCannedResponsesApi(overrides: Partial<CannedResponsesApi> = {}): CannedResponsesApi {
+  return {
+    list: vi.fn().mockResolvedValue([]),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
 /** Renders the real route tree with a fake signed-in user and API. */
 export function renderApp(
   path: string,
-  options: { role?: Role; api?: TicketsApi; notifications?: NotificationsApi } = {},
+  options: { role?: Role; api?: TicketsApi; notifications?: NotificationsApi; canned?: CannedResponsesApi } = {},
 ) {
   const auth: Auth = {
     user: TEST_USERS[options.role ?? 'CUSTOMER'],
@@ -61,18 +73,19 @@ export function renderApp(
   };
   const api = options.api ?? fakeApi();
   const notifications = options.notifications ?? fakeNotificationsApi();
+  const cannedResponses = options.canned ?? fakeCannedResponsesApi();
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const queryClient = createQueryClient();
   queryClient.setDefaultOptions({ queries: { retry: false } });
 
   const result = render(
     <AuthContext.Provider value={auth}>
-      <ApiContext.Provider value={{ tickets: api, notifications }}>
+      <ApiContext.Provider value={{ tickets: api, notifications, cannedResponses }}>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>
       </ApiContext.Provider>
     </AuthContext.Provider>,
   );
-  return { ...result, auth, api, notifications, router };
+  return { ...result, auth, api, notifications, cannedResponses, router };
 }

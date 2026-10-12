@@ -120,6 +120,23 @@ export interface Activity {
   createdAt: string;
 }
 
+/** A team-wide reply template; placeholders are filled in when inserting. */
+export interface CannedResponse {
+  id: number;
+  title: string;
+  body: string;
+  /** Suggested visibility for a comment written from it. */
+  visibility: CommentVisibility;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface CannedResponseRequest {
+  title: string;
+  body: string;
+  visibility: CommentVisibility;
+}
+
 export interface StaffMember {
   id: string;
   name: string;

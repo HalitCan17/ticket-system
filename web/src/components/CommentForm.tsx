@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import type { CommentVisibility, CreateCommentRequest } from '../api/types.ts';
+import type { CannedResponse, CommentVisibility, CreateCommentRequest } from '../api/types.ts';
+import { fillPlaceholders, type PlaceholderValues } from '../placeholders.ts';
 import { VISIBILITY_LABELS } from '../labels.ts';
 import styles from './Comments.module.css';
 
@@ -8,12 +9,24 @@ interface Props {
   staff: boolean;
   pending: boolean;
   onSubmit: (request: CreateCommentRequest) => Promise<unknown>;
+  /** Staff only: reply templates offered above the text box. */
+  templates?: CannedResponse[];
+  placeholders?: PlaceholderValues;
 }
 
-export function CommentForm({ staff, pending, onSubmit }: Props) {
+export function CommentForm({ staff, pending, onSubmit, templates = [], placeholders }: Props) {
   const [body, setBody] = useState('');
   // Safe default for staff: a note meant for the team must not reach the customer by accident.
   const [visibility, setVisibility] = useState<CommentVisibility>(staff ? 'INTERNAL' : 'EXTERNAL');
+
+  /** Adds the template below what is already written; the agent edits and sends it. */
+  function insert(templateId: string) {
+    const template = templates.find((t) => String(t.id) === templateId);
+    if (!template) return;
+    const text = placeholders ? fillPlaceholders(template.body, placeholders) : template.body;
+    setBody((current) => (current.trim() ? `${current.trimEnd()}\n\n${text}` : text));
+    setVisibility(template.visibility);
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -28,6 +41,26 @@ export function CommentForm({ staff, pending, onSubmit }: Props) {
 
   return (
     <form className={styles.form} onSubmit={(e) => void submit(e)}>
+      {staff && templates.length > 0 && (
+        <div className={styles.template}>
+          <label htmlFor="comment-template">Hazır yanıt</label>
+          <select
+            id="comment-template"
+            value=""
+            onChange={(e) => {
+              insert(e.target.value);
+            }}
+          >
+            <option value="">Seçin…</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+                {t.visibility === 'INTERNAL' ? ' (dahili)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <label htmlFor="comment-body">Yorum</label>
       <textarea id="comment-body" rows={3} value={body} onChange={(e) => setBody(e.target.value)} />
       <div className={styles.formFooter}>

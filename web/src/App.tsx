@@ -2,11 +2,13 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, type RouteObject } from 'react-router';
 import { ApiContext } from './api/ApiContext.tsx';
+import { cannedResponsesApi } from './api/cannedResponses.ts';
 import { ApiError, createApiClient } from './api/client.ts';
 import { notificationsApi } from './api/notifications.ts';
 import { ticketsApi } from './api/tickets.ts';
 import { useAuth } from './auth/AuthContext.tsx';
 import { Layout } from './components/Layout.tsx';
+import { CannedResponsesPage } from './pages/CannedResponsesPage.tsx';
 import { NewTicketPage } from './pages/NewTicketPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { TicketDetailPage } from './pages/TicketDetailPage.tsx';
@@ -21,6 +23,7 @@ export const routes: RouteObject[] = [
       { path: 'tickets', element: <TicketListPage /> },
       { path: 'tickets/new', element: <NewTicketPage /> },
       { path: 'tickets/:id', element: <TicketDetailPage /> },
+      { path: 'canned-responses', element: <CannedResponsesPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
@@ -43,7 +46,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const { getToken } = useAuth();
   const api = useMemo(() => {
     const client = createApiClient(getToken);
-    return { tickets: ticketsApi(client), notifications: notificationsApi(client) };
+    return {
+      tickets: ticketsApi(client),
+      notifications: notificationsApi(client),
+      cannedResponses: cannedResponsesApi(client),
+    };
   }, [getToken]);
   const [queryClient] = useState(createQueryClient);
 

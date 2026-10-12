@@ -77,3 +77,19 @@
 .visibility input {
   width: auto;
 }
+
+.template {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.template label {
+  margin: 0;
+}
+
+.template select {
+  width: auto;
+  max-width: 100%;
+}

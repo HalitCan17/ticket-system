@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
-import { useTicketsApi } from '../api/ApiContext.tsx';
+import { useCannedResponsesApi, useTicketsApi } from '../api/ApiContext.tsx';
 import { ApiError } from '../api/client.ts';
 import type { Activity, CreateCommentRequest, StatusHistoryEntry, Ticket, TicketStatus, UpdateTicketRequest } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
@@ -28,6 +28,13 @@ export function TicketDetailPage() {
   const ticket = useQuery({ queryKey: ['ticket', id], queryFn: () => api.get(id), enabled: validId });
   const history = useQuery({ queryKey: ['history', id], queryFn: () => api.history(id), enabled: ticket.isSuccess });
   const staffView = isStaff(user.role);
+  const cannedApi = useCannedResponsesApi();
+  const templates = useQuery({
+    queryKey: ['canned-responses'],
+    queryFn: () => cannedApi.list(),
+    enabled: staffView,
+    staleTime: 60_000,
+  });
   const activities = useQuery({
     queryKey: ['activities', id],
     queryFn: () => api.activities(id),
@@ -167,6 +174,12 @@ export function TicketDetailPage() {
             ) : (
               <CommentForm
                 staff={staff}
+                templates={templates.data}
+                placeholders={{
+                  customer: t.requesterName ?? 'Sayın müşterimiz',
+                  ticketId: t.id,
+                  me: user.displayName,
+                }}
                 pending={addComment.isPending}
                 onSubmit={(request) => addComment.mutateAsync(request)}
               />
