@@ -29,6 +29,20 @@ describe('TransitionActions', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('asks for confirmation before a customer withdraws a new ticket', async () => {
+    const onTransition = vi.fn();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    render(<TransitionActions status="NEW" allowed={['CLOSED']} role="CUSTOMER" pending={false} onTransition={onTransition} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Talebi geri çek' }));
+    expect(onTransition).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Talebi geri çek' }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(onTransition).toHaveBeenCalledWith('CLOSED');
+    confirm.mockRestore();
+  });
+
   it('transitions immediately when no note is needed', async () => {
     const onTransition = vi.fn();
     render(<TransitionActions status="NEW" allowed={['IN_PROGRESS']} role="AGENT" pending={false} onTransition={onTransition} />);

@@ -1,0 +1,95 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+.card form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.card textarea {
+  width: 100%;
+}
+
+.scores {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.scores legend {
+  float: left;
+  margin-right: var(--space-2);
+  font-weight: 600;
+}
+
+.option,
+.selected {
+  position: relative;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  margin: 0;
+  color: var(--border);
+}
+
+.selected {
+  color: #e2a400;
+}
+
+/* The radio stays in the accessibility tree and keyboard order; only its circle is hidden. */
+.option input,
+.selected input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.option:focus-within,
+.selected:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.stars {
+  color: #e2a400;
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+}
+
+.empty {
+  color: var(--border);
+}
+
+.comment {
+  margin: var(--space-2) 0 0;
+  white-space: pre-wrap;
+}
+
+.muted {
+  color: var(--text-muted);
+}

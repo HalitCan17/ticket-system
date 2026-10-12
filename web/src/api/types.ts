@@ -6,6 +6,11 @@ export type TicketStatus = 'NEW' | 'IN_PROGRESS' | 'WAITING_FOR_CUSTOMER' | 'RES
 
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
+export type TicketCategory = 'HARDWARE' | 'SOFTWARE' | 'NETWORK' | 'ACCESS' | 'OTHER';
+
+/** List tabs: OPEN = everything except CLOSED. */
+export type TicketScope = 'OPEN' | 'CLOSED' | 'ALL';
+
 export type CommentVisibility = 'INTERNAL' | 'EXTERNAL';
 
 export type SlaState = 'RUNNING' | 'PAUSED' | 'STOPPED';
@@ -21,12 +26,19 @@ export interface Sla {
   breached: boolean;
 }
 
+export interface Rating {
+  score: number;
+  comment: string | null;
+  ratedAt: string;
+}
+
 export interface Ticket {
   id: number;
   title: string;
   description: string;
   status: TicketStatus;
   priority: TicketPriority;
+  category: TicketCategory;
   requesterId: string;
   requesterName: string | null;
   assigneeId: string | null;
@@ -39,6 +51,10 @@ export interface Ticket {
   allowedTransitions: TicketStatus[];
   sla: Sla;
   autoCloseAt: string | null;
+  /** The requester's satisfaction rating; null until rated. */
+  rating: Rating | null;
+  /** Whether the caller may rate now (requester, resolved, not yet rated). */
+  canRate: boolean;
 }
 
 export interface Page<T> {
@@ -71,6 +87,12 @@ export interface CreateTicketRequest {
   title: string;
   description: string;
   priority: TicketPriority;
+  category: TicketCategory;
+}
+
+export interface RateTicketRequest {
+  score: number;
+  comment?: string;
 }
 
 export interface TransitionRequest {
@@ -100,7 +122,8 @@ export type NotificationType =
   | 'COMMENT_ADDED'
   | 'INTERNAL_COMMENT_ADDED'
   | 'SLA_BREACHED'
-  | 'ATTACHMENT_ADDED';
+  | 'ATTACHMENT_ADDED'
+  | 'TICKET_RATED';
 
 /** Mirrors backend NotificationResponse; the sentence is built in the UI from the type. */
 export interface AppNotification {

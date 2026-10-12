@@ -7,6 +7,8 @@ interface ActionSpec {
   /** Label of the required note field, when the backend requires one. */
   noteLabel?: string;
   secondary?: boolean;
+  /** Asked with window.confirm before the transition. */
+  confirm?: string;
 }
 
 /** Button texts per transition; which ones are shown comes from the backend's allowedTransitions. */
@@ -19,6 +21,9 @@ function actionFor(from: TicketStatus, to: TicketStatus, role: Role): ActionSpec
     return role === 'CUSTOMER'
       ? { label: 'Çözüme itiraz et', noteLabel: 'İtiraz gerekçesi', secondary: true }
       : { label: 'Yeniden aç', noteLabel: 'Yeniden açma gerekçesi', secondary: true };
+  }
+  if (to === 'CLOSED' && from === 'NEW') {
+    return { label: 'Talebi geri çek', secondary: true, confirm: 'Talep geri çekilip kapatılsın mı? Bu işlem geri alınamaz.' };
   }
   if (to === 'CLOSED') return { label: role === 'CUSTOMER' ? 'Onayla ve kapat' : 'Kapat' };
   return { label: to };
@@ -61,6 +66,9 @@ export function TransitionActions({ status, allowed, role, pending, onTransition
               className={spec.secondary ? 'secondary' : undefined}
               disabled={pending}
               onClick={() => {
+                if (spec.confirm && !window.confirm(spec.confirm)) {
+                  return;
+                }
                 if (spec.noteLabel) {
                   setNoteFor(target);
                   setNote('');

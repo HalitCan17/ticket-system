@@ -6,13 +6,20 @@ import type {
   CreateCommentRequest,
   CreateTicketRequest,
   Page,
+  RateTicketRequest,
   StatusHistoryEntry,
   Ticket,
+  TicketCategory,
+  TicketScope,
   TicketStatus,
   TransitionRequest,
 } from './types.ts';
 
 export interface TicketListParams {
+  /** Title text, or a ticket id such as 12 or #12. */
+  q?: string;
+  scope?: TicketScope;
+  category?: TicketCategory;
   status?: TicketStatus;
   page?: number;
   size?: number;
@@ -22,6 +29,9 @@ export function ticketsApi(client: ApiClient) {
   return {
     list(params: TicketListParams = {}): Promise<Page<Ticket>> {
       const query = new URLSearchParams();
+      if (params.q) query.set('q', params.q);
+      if (params.scope) query.set('scope', params.scope);
+      if (params.category) query.set('category', params.category);
       if (params.status) query.set('status', params.status);
       if (params.page !== undefined) query.set('page', String(params.page));
       if (params.size !== undefined) query.set('size', String(params.size));
@@ -32,6 +42,7 @@ export function ticketsApi(client: ApiClient) {
     create: (request: CreateTicketRequest): Promise<Ticket> => client.post('/api/tickets', request),
     transition: (id: number, request: TransitionRequest): Promise<Ticket> =>
       client.post(`/api/tickets/${id}/transitions`, request),
+    rate: (id: number, request: RateTicketRequest): Promise<Ticket> => client.post(`/api/tickets/${id}/rating`, request),
     history: (id: number): Promise<StatusHistoryEntry[]> => client.get(`/api/tickets/${id}/history`),
     comments: (id: number): Promise<Comment[]> => client.get(`/api/tickets/${id}/comments`),
     addComment: (id: number, request: CreateCommentRequest): Promise<Comment> =>

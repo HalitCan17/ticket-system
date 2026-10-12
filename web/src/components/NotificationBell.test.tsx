@@ -39,6 +39,9 @@ describe('notificationText', () => {
       'SLA süresi aşıldı',
     );
     expect(notificationText(aNotification({ type: 'COMMENT_ADDED', actorName: null }))).toBe('Bir kullanıcı yorum yazdı');
+    expect(notificationText(aNotification({ type: 'TICKET_RATED', actorName: 'Customer One' }))).toBe(
+      'Customer One çözümü puanladı',
+    );
   });
 });
 

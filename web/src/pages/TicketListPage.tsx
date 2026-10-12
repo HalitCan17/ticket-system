@@ -1,47 +1,146 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router';
 import { useTicketsApi } from '../api/ApiContext.tsx';
-import type { TicketStatus } from '../api/types.ts';
+import type { TicketCategory, TicketScope, TicketStatus } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { PriorityBadge, SlaBadge, StatusBadge } from '../components/Badges.tsx';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
 import { formatDateTime, userLabel } from '../format.ts';
-import { STATUS_LABELS, STATUS_ORDER } from '../labels.ts';
+import { CATEGORY_LABELS, CATEGORY_ORDER, STATUS_LABELS, STATUS_ORDER } from '../labels.ts';
 import styles from './TicketListPage.module.css';
 
 const PAGE_SIZE = 20;
+/** Typing pauses this long before the search hits the API. */
+export const SEARCH_DEBOUNCE_MS = 300;
+
+const TABS: { scope: TicketScope; label: string }[] = [
+  { scope: 'OPEN', label: 'Açık' },
+  { scope: 'CLOSED', label: 'Kapanmış' },
+  { scope: 'ALL', label: 'Tümü' },
+];
 
 function parseStatus(value: string | null): TicketStatus | undefined {
   return STATUS_ORDER.find((status) => status === value);
+}
+
+function parseCategory(value: string | null): TicketCategory | undefined {
+  return CATEGORY_ORDER.find((category) => category === value);
+}
+
+/** The URL omits the default tab (OPEN). */
+function parseScope(value: string | null): TicketScope {
+  return TABS.find((tab) => tab.scope === value?.toUpperCase())?.scope ?? 'OPEN';
+}
+
+interface Filters {
+  q: string;
+  scope: TicketScope;
+  category?: TicketCategory;
+  status?: TicketStatus;
+  page: number;
 }
 
 export function TicketListPage() {
   const api = useTicketsApi();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const status = parseStatus(searchParams.get('status'));
-  const page = Math.max(0, Number(searchParams.get('page') ?? 0) || 0);
+  const filters: Filters = {
+    q: searchParams.get('q') ?? '',
+    scope: parseScope(searchParams.get('scope')),
+    category: parseCategory(searchParams.get('category')),
+    status: parseStatus(searchParams.get('status')),
+    page: Math.max(0, Number(searchParams.get('page') ?? 0) || 0),
+  };
+  const [text, setText] = useState(filters.q);
 
   const tickets = useQuery({
-    queryKey: ['tickets', { status, page }],
-    queryFn: () => api.list({ status, page, size: PAGE_SIZE }),
+    queryKey: ['tickets', filters],
+    queryFn: () =>
+      api.list({
+        q: filters.q || undefined,
+        scope: filters.scope,
+        category: filters.category,
+        status: filters.status,
+        page: filters.page,
+        size: PAGE_SIZE,
+      }),
   });
 
-  function update(next: { status?: TicketStatus; page?: number }) {
+  function update(next: Partial<Filters>) {
+    // Any filter change goes back to the first page unless a page is given.
+    const merged = { ...filters, page: 0, ...next };
     const params = new URLSearchParams();
-    if (next.status) params.set('status', next.status);
-    if (next.page) params.set('page', String(next.page));
+    if (merged.q) params.set('q', merged.q);
+    if (merged.scope !== 'OPEN') params.set('scope', merged.scope.toLowerCase());
+    if (merged.category) params.set('category', merged.category);
+    if (merged.status) params.set('status', merged.status);
+    if (merged.page) params.set('page', String(merged.page));
     setSearchParams(params);
   }
+
+  useEffect(() => {
+    if (text.trim() === filters.q) return;
+    const timer = setTimeout(() => update({ q: text.trim() }), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+    // Only typing triggers a search; the other filters update the URL directly.
+  }, [text]);
+
+  const filtered = filters.q !== '' || filters.category !== undefined || filters.status !== undefined;
 
   return (
     <section>
       <div className={styles.toolbar}>
         <h1>Talepler</h1>
+        <Link to="/tickets/new" className={styles.newLink}>
+          + Yeni talep
+        </Link>
+      </div>
+
+      <div className={styles.tabs} role="tablist" aria-label="Talep durumu">
+        {TABS.map((tab) => (
+          <button
+            key={tab.scope}
+            type="button"
+            role="tab"
+            aria-selected={filters.scope === tab.scope}
+            className={filters.scope === tab.scope ? styles.activeTab : styles.tab}
+            onClick={() => update({ scope: tab.scope })}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.filters}>
+        <label className={styles.search}>
+          <span>Ara</span>
+          <input
+            type="search"
+            placeholder="Başlık ya da #numara"
+            value={text}
+            maxLength={200}
+            onChange={(event) => setText(event.target.value)}
+          />
+        </label>
+        <label className={styles.filter}>
+          <span>Kategori</span>
+          <select
+            value={filters.category ?? ''}
+            onChange={(event) => update({ category: parseCategory(event.target.value) })}
+          >
+            <option value="">Tümü</option>
+            {CATEGORY_ORDER.map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className={styles.filter}>
           <span>Durum</span>
           <select
-            value={status ?? ''}
+            value={filters.status ?? ''}
             onChange={(event) => update({ status: parseStatus(event.target.value) })}
           >
             <option value="">Tümü</option>
@@ -52,15 +151,12 @@ export function TicketListPage() {
             ))}
           </select>
         </label>
-        <Link to="/tickets/new" className={styles.newLink}>
-          + Yeni talep
-        </Link>
       </div>
 
       {tickets.isPending && <p className={styles.muted}>Yükleniyor…</p>}
       {tickets.isError && <ErrorMessage error={tickets.error} />}
       {tickets.data && tickets.data.items.length === 0 && (
-        <p className={styles.muted}>{status ? 'Bu durumda talep yok.' : 'Henüz talep yok.'}</p>
+        <p className={styles.muted}>{filtered ? 'Aramaya uyan talep yok.' : 'Burada talep yok.'}</p>
       )}
 
       {tickets.data && tickets.data.items.length > 0 && (
@@ -71,6 +167,7 @@ export function TicketListPage() {
                 <tr>
                   <th>#</th>
                   <th>Başlık</th>
+                  <th>Kategori</th>
                   <th>Öncelik</th>
                   <th>Durum</th>
                   <th>SLA</th>
@@ -86,6 +183,7 @@ export function TicketListPage() {
                     <td>
                       <Link to={`/tickets/${ticket.id}`}>{ticket.title}</Link>
                     </td>
+                    <td className={styles.muted}>{CATEGORY_LABELS[ticket.category]}</td>
                     <td>
                       <PriorityBadge priority={ticket.priority} />
                     </td>
@@ -107,8 +205,8 @@ export function TicketListPage() {
             <button
               type="button"
               className="secondary"
-              disabled={page === 0}
-              onClick={() => update({ status, page: page - 1 })}
+              disabled={filters.page === 0}
+              onClick={() => update({ page: filters.page - 1 })}
             >
               Önceki
             </button>
@@ -118,8 +216,8 @@ export function TicketListPage() {
             <button
               type="button"
               className="secondary"
-              disabled={page + 1 >= tickets.data.totalPages}
-              onClick={() => update({ status, page: page + 1 })}
+              disabled={filters.page + 1 >= tickets.data.totalPages}
+              onClick={() => update({ page: filters.page + 1 })}
             >
               Sonraki
             </button>

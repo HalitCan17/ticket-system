@@ -13,6 +13,8 @@ describe('NewTicketPage', () => {
 
     await userEvent.type(screen.getByLabelText('Başlık'), '  E-posta açılmıyor ');
     await userEvent.type(screen.getByLabelText('Açıklama'), 'Outlook hata veriyor');
+    expect(screen.getByLabelText('Kategori')).toHaveValue('OTHER');
+    await userEvent.selectOptions(screen.getByLabelText('Kategori'), 'NETWORK');
     await userEvent.selectOptions(screen.getByLabelText('Öncelik'), 'CRITICAL');
     await userEvent.click(screen.getByRole('button', { name: 'Talep aç' }));
 
@@ -20,6 +22,7 @@ describe('NewTicketPage', () => {
       title: 'E-posta açılmıyor',
       description: 'Outlook hata veriyor',
       priority: 'CRITICAL',
+      category: 'NETWORK',
     });
     expect(await screen.findByRole('heading', { name: /E-posta açılmıyor/ })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/tickets/42');

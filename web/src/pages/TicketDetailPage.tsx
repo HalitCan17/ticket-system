@@ -9,9 +9,10 @@ import { Attachments } from '../components/Attachments.tsx';
 import { PriorityBadge, SlaBadge, StatusBadge } from '../components/Badges.tsx';
 import { CommentForm } from '../components/CommentForm.tsx';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
+import { Rating } from '../components/Rating.tsx';
 import { TransitionActions } from '../components/TransitionActions.tsx';
 import { formatDateTime, formatDuration, userLabel } from '../format.ts';
-import { STATUS_LABELS } from '../labels.ts';
+import { CATEGORY_LABELS, STATUS_LABELS } from '../labels.ts';
 import comments from '../components/Comments.module.css';
 import styles from './TicketDetailPage.module.css';
 
@@ -38,6 +39,11 @@ export function TicketDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['history', id] });
       void queryClient.invalidateQueries({ queryKey: ['tickets'] });
     },
+  });
+
+  const rate = useMutation({
+    mutationFn: ({ score, comment }: { score: number; comment?: string }) => api.rate(id, { score, comment }),
+    onSuccess: (updated) => queryClient.setQueryData(['ticket', id], updated),
   });
 
   const addComment = useMutation({
@@ -92,6 +98,13 @@ export function TicketDetailPage() {
             </section>
           )}
 
+          <Rating
+            ticket={t}
+            pending={rate.isPending}
+            onRate={(score, comment) => rate.mutate({ score, comment })}
+          />
+          {rate.isError && <ErrorMessage error={rate.error} />}
+
           <AutoCloseNotice ticket={t} customerView={!staff} />
 
           <TransitionActions
@@ -142,6 +155,8 @@ export function TicketDetailPage() {
 
         <aside className={styles.side}>
           <dl className={styles.facts}>
+            <dt>Kategori</dt>
+            <dd>{CATEGORY_LABELS[t.category]}</dd>
             <dt>Talep eden</dt>
             <dd>{userLabel(t.requesterId, t.requesterName, user.id)}</dd>
             <dt>Atanan</dt>

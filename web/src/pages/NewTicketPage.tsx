@@ -3,16 +3,21 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { useTicketsApi } from '../api/ApiContext.tsx';
 import { ApiError } from '../api/client.ts';
-import type { CreateTicketRequest, TicketPriority } from '../api/types.ts';
+import type { CreateTicketRequest, TicketCategory, TicketPriority } from '../api/types.ts';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
-import { PRIORITY_LABELS, PRIORITY_ORDER } from '../labels.ts';
+import { CATEGORY_LABELS, CATEGORY_ORDER, PRIORITY_LABELS, PRIORITY_ORDER } from '../labels.ts';
 import styles from './Form.module.css';
 
 export function NewTicketPage() {
   const api = useTicketsApi();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<CreateTicketRequest>({ title: '', description: '', priority: 'MEDIUM' });
+  const [form, setForm] = useState<CreateTicketRequest>({
+    title: '',
+    description: '',
+    priority: 'MEDIUM',
+    category: 'OTHER',
+  });
 
   const create = useMutation({
     mutationFn: (request: CreateTicketRequest) => api.create(request),
@@ -56,6 +61,20 @@ export function NewTicketPage() {
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
           {fieldError('description') && <p className={styles.fieldError}>{fieldError('description')}</p>}
+        </div>
+        <div className={styles.field}>
+          <label htmlFor="category">Kategori</label>
+          <select
+            id="category"
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value as TicketCategory })}
+          >
+            {CATEGORY_ORDER.map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
         </div>
         <div className={styles.field}>
           <label htmlFor="priority">Öncelik</label>

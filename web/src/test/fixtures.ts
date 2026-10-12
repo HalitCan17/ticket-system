@@ -19,6 +19,7 @@ export function aTicket(overrides: Partial<Ticket> = {}): Ticket {
     description: 'Evden bağlanamıyorum.',
     status: 'NEW',
     priority: 'HIGH',
+    category: 'OTHER',
     requesterId: 'cust-1',
     requesterName: 'Customer One',
     assigneeId: null,
@@ -31,6 +32,8 @@ export function aTicket(overrides: Partial<Ticket> = {}): Ticket {
     allowedTransitions: [],
     sla: anSla(),
     autoCloseAt: null,
+    rating: null,
+    canRate: false,
     ...overrides,
   };
 }

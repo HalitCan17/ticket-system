@@ -19,5 +19,7 @@ export function notificationText(n: AppNotification): string {
       return 'SLA süresi aşıldı';
     case 'ATTACHMENT_ADDED':
       return `${actor} dosya ekledi`;
+    case 'TICKET_RATED':
+      return `${actor} çözümü puanladı`;
   }
 }
