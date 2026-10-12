@@ -24,7 +24,8 @@ test('manager adds a canned response, agent uses it, customer reads the filled-i
   await expect(commentForm.getByLabel('Yorum', { exact: true })).toHaveValue(expected);
   await expect(commentForm.getByRole('radio', { name: 'Müşteriye açık' })).toBeChecked();
   await commentForm.getByRole('button', { name: 'Yorum ekle' }).click();
-  await expect(agent.getByText(expected)).toBeVisible();
+  // The saved comment in the list (getByText alone would also match the text box before it is sent).
+  await expect(agent.getByRole('listitem').filter({ hasText: expected })).toBeVisible();
 
   await customer.reload();
   await expect(customer.getByText(expected)).toBeVisible();
