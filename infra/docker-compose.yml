@@ -72,6 +72,14 @@ services:
       ITSM_AUTOCLOSE_AFTER: ${ITSM_AUTOCLOSE_AFTER:-7d}
       ITSM_AUTOCLOSE_POLLINTERVAL: ${ITSM_AUTOCLOSE_POLLINTERVAL:-60s}
       ITSM_ATTACHMENTS_DIR: /data/attachments
+      # OpenTelemetry Java agent: HTTP, JDBC and outgoing calls become spans; log4j2 logs are sent too and
+      # carry trace_id/span_id. If data-prepper is down the agent drops data; the backend keeps working.
+      JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+      OTEL_SERVICE_NAME: itsm-backend
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://data-prepper:21890
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://data-prepper:21892
+      OTEL_METRICS_EXPORTER: none
     volumes:
       # Attachment contents (metadata is in Postgres); keep together with pgdata when backing up.
       - attachments:/data/attachments
