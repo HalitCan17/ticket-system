@@ -20,6 +20,7 @@ import com.itsm.backend.ticket.dto.UpdateTicketRequest;
 import com.itsm.backend.ticket.event.TicketAssigneeChangedEvent;
 import com.itsm.backend.ticket.event.TicketPriorityChangedEvent;
 import com.itsm.backend.ticket.repository.TicketActivityRepository;
+import com.itsm.backend.ticket.sla.BusinessCalendarProvider;
 import com.itsm.backend.ticket.sla.SlaProperties;
 import com.itsm.backend.user.UserDirectory;
 import org.slf4j.Logger;
@@ -42,17 +43,19 @@ public class TicketManagementService {
     private final UserDirectory userDirectory;
     private final SlaProperties sla;
     private final GroupRouting routing;
+    private final BusinessCalendarProvider calendar;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public TicketManagementService(TicketService tickets, TicketActivityRepository activities,
-            UserDirectory userDirectory, SlaProperties sla, GroupRouting routing, ApplicationEventPublisher events,
-            Clock clock) {
+            UserDirectory userDirectory, SlaProperties sla, GroupRouting routing, BusinessCalendarProvider calendar,
+            ApplicationEventPublisher events, Clock clock) {
         this.tickets = tickets;
         this.activities = activities;
         this.userDirectory = userDirectory;
         this.sla = sla;
         this.routing = routing;
+        this.calendar = calendar;
         this.events = events;
         this.clock = clock;
     }
@@ -90,7 +93,7 @@ public class TicketManagementService {
 
         if (request.priority() != null && request.priority() != ticket.getPriority()) {
             TicketPriority previous = ticket.changePriority(request.priority(), sla.targetFor(request.priority()),
-                    sla.firstResponseFor(request.priority()), reason, user, now);
+                    sla.firstResponseFor(request.priority()), reason, user, calendar.current(), now);
             activities.save(new TicketActivity(ticket.getId(), TicketActivityType.PRIORITY_CHANGED, previous.name(),
                     request.priority().name(), reason, user.id(), now));
             events.publishEvent(new TicketPriorityChangedEvent(ticket, previous, user.id()));

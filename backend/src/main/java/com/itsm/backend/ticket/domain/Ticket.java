@@ -125,6 +125,12 @@ public class Ticket {
 
     public static Ticket open(String title, String description, TicketPriority priority, TicketCategory category,
             String requesterId, Duration slaTarget, Instant now) {
+        return open(title, description, priority, category, requesterId, slaTarget, BusinessCalendar.ALWAYS, now);
+    }
+
+    /** @param calendar decides which hours count for the SLA clocks (see {@link BusinessCalendar}) */
+    public static Ticket open(String title, String description, TicketPriority priority, TicketCategory category,
+            String requesterId, Duration slaTarget, BusinessCalendar calendar, Instant now) {
         Ticket ticket = new Ticket();
         ticket.title = title;
         ticket.description = description;
@@ -134,7 +140,7 @@ public class Ticket {
         ticket.status = TicketStatus.NEW;
         ticket.createdAt = now;
         ticket.updatedAt = now;
-        ticket.setSlaClock(SlaClock.start(slaTarget, now));
+        ticket.setSlaClock(SlaClock.start(slaTarget, now), calendar);
         return ticket;
     }
 
@@ -144,6 +150,11 @@ public class Ticket {
      * @return the status before the transition
      */
     public TicketStatus transitionTo(TicketStatus target, CurrentUser actor, String note, Instant now) {
+        return transitionTo(target, actor, note, BusinessCalendar.ALWAYS, now);
+    }
+
+    public TicketStatus transitionTo(TicketStatus target, CurrentUser actor, String note, BusinessCalendar calendar,
+            Instant now) {
         TicketWorkflow.validate(status, target, actor, requesterId, note);
         TicketStatus previous = status;
 
@@ -165,7 +176,7 @@ public class Ticket {
 
         status = target;
         updatedAt = now;
-        updateSlaClock(now);
+        updateSlaClock(now, calendar);
         return previous;
     }
 
@@ -174,11 +185,15 @@ public class Ticket {
      * Bypasses actor rules; see {@link TicketWorkflow#validateSystemClose}.
      */
     public void autoClose(Instant now) {
+        autoClose(BusinessCalendar.ALWAYS, now);
+    }
+
+    public void autoClose(BusinessCalendar calendar, Instant now) {
         TicketWorkflow.validateSystemClose(status);
         status = TicketStatus.CLOSED;
         closedAt = now;
         updatedAt = now;
-        updateSlaClock(now);
+        updateSlaClock(now, calendar);
     }
 
     /**
@@ -254,6 +269,13 @@ public class Ticket {
      */
     public TicketPriority changePriority(TicketPriority newPriority, Duration newSlaTarget,
             Duration newFirstResponseTarget, String reason, CurrentUser actor, Instant now) {
+        return changePriority(newPriority, newSlaTarget, newFirstResponseTarget, reason, actor,
+                BusinessCalendar.ALWAYS, now);
+    }
+
+    public TicketPriority changePriority(TicketPriority newPriority, Duration newSlaTarget,
+            Duration newFirstResponseTarget, String reason, CurrentUser actor, BusinessCalendar calendar,
+            Instant now) {
         checkEditable(actor);
         if (status == TicketStatus.RESOLVED) {
             throw new ConflictException("PRIORITY_LOCKED", "The priority of a resolved ticket cannot change.");
@@ -262,7 +284,7 @@ public class Ticket {
             throw new BadRequestException("PRIORITY_REASON_REQUIRED", "A reason is required to change the priority.");
         }
         TicketPriority previous = priority;
-        applyPriority(newPriority, newSlaTarget, newFirstResponseTarget, now);
+        applyPriority(newPriority, newSlaTarget, newFirstResponseTarget, calendar, now);
         return previous;
     }
 
@@ -271,18 +293,18 @@ public class Ticket {
      * breaches that no longer hold are reset, so they are notified again if they recur.
      */
     private void applyPriority(TicketPriority newPriority, Duration newSlaTarget, Duration newFirstResponseTarget,
-            Instant now) {
+            BusinessCalendar calendar, Instant now) {
         priority = newPriority;
         SlaClock clock = getSlaClock().withTarget(newSlaTarget);
-        setSlaClock(clock);
-        if (!clock.isBreached(now)) {
+        setSlaClock(clock, calendar);
+        if (!clock.isBreached(now, calendar)) {
             slaBreachNotifiedAt = null;
         }
-        if (!clock.isWarningDue(now)) {
+        if (!clock.isWarningDue(now, calendar)) {
             slaWarningNotifiedAt = null;
         }
         if (firstRespondedAt == null && firstResponseDueAt != null) {
-            firstResponseDueAt = createdAt.plus(newFirstResponseTarget);
+            firstResponseDueAt = calendar.plus(createdAt, newFirstResponseTarget);
             if (!isFirstResponseBreached(now)) {
                 firstResponseBreachNotifiedAt = null;
             }
@@ -349,7 +371,11 @@ public class Ticket {
 
     /** Starts the first response clock; called when the ticket is opened. */
     public void startFirstResponseClock(Duration target) {
-        firstResponseDueAt = createdAt.plus(target);
+        startFirstResponseClock(target, BusinessCalendar.ALWAYS);
+    }
+
+    public void startFirstResponseClock(Duration target, BusinessCalendar calendar) {
+        firstResponseDueAt = calendar.plus(createdAt, target);
     }
 
     /**
@@ -400,6 +426,11 @@ public class Ticket {
      */
     public TicketPriority escalate(boolean raisePriority, Function<TicketPriority, Duration> slaTargets,
             Function<TicketPriority, Duration> firstResponseTargets, Instant now) {
+        return escalate(raisePriority, slaTargets, firstResponseTargets, BusinessCalendar.ALWAYS, now);
+    }
+
+    public TicketPriority escalate(boolean raisePriority, Function<TicketPriority, Duration> slaTargets,
+            Function<TicketPriority, Duration> firstResponseTargets, BusinessCalendar calendar, Instant now) {
         escalatedAt = now;
         updatedAt = now;
         TicketPriority higher = priority.higher();
@@ -407,7 +438,7 @@ public class Ticket {
             return null;
         }
         TicketPriority previous = priority;
-        applyPriority(higher, slaTargets.apply(higher), firstResponseTargets.apply(higher), now);
+        applyPriority(higher, slaTargets.apply(higher), firstResponseTargets.apply(higher), calendar, now);
         return previous;
     }
 
@@ -461,17 +492,36 @@ public class Ticket {
     }
 
     /** The clock runs in NEW/IN_PROGRESS and is halted in every other status. */
-    private void updateSlaClock(Instant now) {
+    private void updateSlaClock(Instant now, BusinessCalendar calendar) {
         SlaClock clock = getSlaClock();
-        setSlaClock(getSlaState() == SlaState.RUNNING ? clock.resume(now) : clock.halt(now));
+        setSlaClock(getSlaState() == SlaState.RUNNING ? clock.resume(now) : clock.halt(now, calendar), calendar);
     }
 
-    private void setSlaClock(SlaClock clock) {
+    private void setSlaClock(SlaClock clock, BusinessCalendar calendar) {
         slaTargetSeconds = clock.target().toSeconds();
         slaElapsedSeconds = clock.elapsedBeforeRun().toSeconds();
         slaRunningSince = clock.runningSince();
-        slaDueAt = clock.scheduledDueAt();
-        slaWarnAt = clock.scheduledWarnAt();
+        slaDueAt = clock.scheduledDueAt(calendar);
+        slaWarnAt = clock.scheduledWarnAt(calendar);
+    }
+
+    /**
+     * The business calendar changed: the time used so far is settled with the old calendar and the clocks continue
+     * with the new one, so the elapsed time is kept and only the due and warning moments move. An unanswered first
+     * response is measured again from the creation time.
+     *
+     * @param firstResponseTarget first response target of the ticket's current priority
+     */
+    public void rebaseSlaClocks(BusinessCalendar oldCalendar, BusinessCalendar newCalendar,
+            Duration firstResponseTarget, Instant now) {
+        SlaClock clock = getSlaClock();
+        if (clock.isRunning()) {
+            setSlaClock(clock.halt(now, oldCalendar).resume(now), newCalendar);
+        }
+        if (firstRespondedAt == null && firstResponseDueAt != null) {
+            firstResponseDueAt = newCalendar.plus(createdAt, firstResponseTarget);
+            firstResponseBreachNotifiedAt = now.isAfter(firstResponseDueAt) ? firstResponseBreachNotifiedAt : null;
+        }
     }
 
     public boolean isClosed() {

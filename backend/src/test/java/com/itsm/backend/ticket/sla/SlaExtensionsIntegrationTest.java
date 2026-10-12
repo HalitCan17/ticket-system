@@ -66,6 +66,9 @@ class SlaExtensionsIntegrationTest {
     NotificationService notificationService;
 
     @Autowired
+    BusinessCalendarProvider calendar;
+
+    @Autowired
     PlatformTransactionManager transactionManager;
 
     final String suffix = UUID.randomUUID().toString().substring(0, 8);
@@ -149,7 +152,7 @@ class SlaExtensionsIntegrationTest {
     @Test
     void escalationRaisesThePriorityWhenConfigured() throws Exception {
         SlaBreachService raising = new SlaBreachService(tickets, activities, notificationService,
-                new SlaProperties(null, null, new SlaProperties.Escalation(true)), transactionManager);
+                new SlaProperties(null, null, new SlaProperties.Escalation(true)), calendar, transactionManager);
         Instant openedAt = Instant.now();
         long id = create("HIGH"); // 8 h
         assign(id, agent);

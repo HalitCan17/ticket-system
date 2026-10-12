@@ -3,8 +3,14 @@ package com.itsm.backend.ticket.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.util.EnumSet;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -82,5 +88,61 @@ class SlaClockTest {
     @Test
     void targetMustBePositive() {
         assertThatThrownBy(() -> SlaClock.start(Duration.ZERO, T0)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // --- business calendar ---
+
+    static final ZoneId ISTANBUL = ZoneId.of("Europe/Istanbul");
+    static final BusinessCalendar OFFICE = new BusinessCalendar(true, ISTANBUL,
+            EnumSet.range(DayOfWeek.MONDAY, DayOfWeek.FRIDAY), LocalTime.of(9, 0), LocalTime.of(18, 0), Set.of());
+
+    static Instant at(String localDateTime) {
+        return LocalDateTime.parse(localDateTime).atZone(ISTANBUL).toInstant();
+    }
+
+    @Test
+    void dueAndWarningFollowWorkingHours() {
+        // Friday 17:00, 4 h target: 1 h on Friday, 3 h on Monday.
+        SlaClock clock = SlaClock.start(Duration.ofHours(4), at("2026-10-16T17:00"));
+
+        assertThat(clock.scheduledDueAt(OFFICE)).isEqualTo(at("2026-10-19T12:00"));
+        // 80 % of 4 h = 3 h 12 min: 1 h on Friday + 2 h 12 min on Monday.
+        assertThat(clock.scheduledWarnAt(OFFICE)).isEqualTo(at("2026-10-19T11:12"));
+        assertThat(clock.scheduledDueAt()).isEqualTo(at("2026-10-16T21:00")); // without a calendar: plain hours
+    }
+
+    @Test
+    void elapsedCountsOnlyWorkingTimeAndBreachFollowsIt() {
+        SlaClock clock = SlaClock.start(Duration.ofHours(4), at("2026-10-16T17:00"));
+
+        assertThat(clock.elapsed(at("2026-10-18T12:00"), OFFICE)).isEqualTo(Duration.ofHours(1)); // weekend
+        assertThat(clock.isBreached(at("2026-10-19T12:00"), OFFICE)).isFalse(); // exactly the target
+        assertThat(clock.isBreached(at("2026-10-19T12:01"), OFFICE)).isTrue();
+        assertThat(clock.isBreached(at("2026-10-19T12:01"))).isTrue();
+        assertThat(clock.isWarningDue(at("2026-10-19T11:11"), OFFICE)).isFalse();
+        assertThat(clock.isWarningDue(at("2026-10-19T11:12"), OFFICE)).isTrue();
+        assertThat(clock.remaining(at("2026-10-19T10:00"), OFFICE)).isEqualTo(Duration.ofHours(2));
+        assertThat(clock.dueAt(at("2026-10-19T10:00"), OFFICE)).isEqualTo(at("2026-10-19T12:00"));
+    }
+
+    @Test
+    void haltAccumulatesWorkingTimeAndResumeContinuesFromThere() {
+        SlaClock running = SlaClock.start(Duration.ofHours(4), at("2026-10-16T16:00"));
+
+        SlaClock paused = running.halt(at("2026-10-19T10:00"), OFFICE); // 2 h Friday + 1 h Monday
+        assertThat(paused.elapsedBeforeRun()).isEqualTo(Duration.ofHours(3));
+        assertThat(paused.isRunning()).isFalse();
+        assertThat(paused.scheduledDueAt(OFFICE)).isNull();
+
+        SlaClock resumed = paused.resume(at("2026-10-20T08:00")); // before opening: the hour waits
+        assertThat(resumed.scheduledDueAt(OFFICE)).isEqualTo(at("2026-10-20T10:00"));
+    }
+
+    @Test
+    void alreadyUsedUpTimeStillGivesAWarningMomentAtTheStartOfTheRun() {
+        SlaClock clock = new SlaClock(Duration.ofHours(4), Duration.ofHours(4), at("2026-10-19T10:00"));
+
+        assertThat(clock.scheduledWarnAt(OFFICE)).isEqualTo(at("2026-10-19T10:00"));
+        assertThat(clock.scheduledDueAt(OFFICE)).isEqualTo(at("2026-10-19T10:00"));
     }
 }

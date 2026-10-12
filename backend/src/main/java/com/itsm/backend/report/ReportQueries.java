@@ -22,10 +22,10 @@ import org.springframework.stereotype.Repository;
 public class ReportQueries {
 
     private static final String OPEN = "status in ('NEW', 'IN_PROGRESS', 'WAITING_FOR_CUSTOMER')";
+    /** Same test as the breach scan: a running clock's stored due moment has passed, or a paused one used too much. */
     private static final String BREACHED = """
-            sla_elapsed_seconds
-                + coalesce(extract(epoch from (cast(:now as timestamptz) - sla_running_since)), 0)
-                > sla_target_seconds""";
+            ((sla_running_since is not null and sla_due_at < cast(:now as timestamptz))
+              or (sla_running_since is null and sla_elapsed_seconds > sla_target_seconds))""";
 
     private final NamedParameterJdbcTemplate jdbc;
 

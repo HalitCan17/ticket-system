@@ -316,6 +316,79 @@ class TicketTest {
         assertThat(TicketPriority.CRITICAL.higher()).isEqualTo(TicketPriority.CRITICAL);
     }
 
+    // --- business calendar ---
+
+    static final java.time.ZoneId ISTANBUL = java.time.ZoneId.of("Europe/Istanbul");
+    static final BusinessCalendar OFFICE = new BusinessCalendar(true, ISTANBUL,
+            java.util.EnumSet.range(java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.FRIDAY),
+            java.time.LocalTime.of(9, 0), java.time.LocalTime.of(18, 0), java.util.Set.of());
+
+    static Instant at(String localDateTime) {
+        return java.time.LocalDateTime.parse(localDateTime).atZone(ISTANBUL).toInstant();
+    }
+
+    @Test
+    void ticketOpenedOnFridayEveningIsDueMondayAndFirstResponseWaitsForOpening() {
+        Instant opened = at("2026-10-16T17:30");
+        Ticket ticket = Ticket.open("VPN", "down", TicketPriority.CRITICAL, TicketCategory.NETWORK, "cust1",
+                Duration.ofHours(4), OFFICE, opened);
+        ticket.startFirstResponseClock(Duration.ofMinutes(60), OFFICE);
+
+        // 30 min on Friday + 3 h 30 min on Monday
+        assertThat(ticket.getSlaDueAt()).isEqualTo(at("2026-10-19T12:30"));
+        assertThat(ticket.getFirstResponseDueAt()).isEqualTo(at("2026-10-19T09:30"));
+        assertThat(ticket.getSlaClock().isBreached(at("2026-10-18T12:00"), OFFICE)).isFalse();
+    }
+
+    @Test
+    void pausingSettlesWorkingTimeAndResumingCountsFromTheNextOpening() {
+        Ticket ticket = Ticket.open("VPN", "down", TicketPriority.HIGH, TicketCategory.NETWORK, "cust1",
+                Duration.ofHours(8), OFFICE, at("2026-10-16T16:00"));
+        ticket.transitionTo(TicketStatus.IN_PROGRESS, AGENT, null, OFFICE, at("2026-10-16T16:30"));
+
+        // Waits over the weekend: only the 2 h on Friday count.
+        ticket.transitionTo(TicketStatus.WAITING_FOR_CUSTOMER, AGENT, null, OFFICE, at("2026-10-16T18:30"));
+        assertThat(ticket.getSlaClock().elapsedBeforeRun()).isEqualTo(Duration.ofHours(2));
+        assertThat(ticket.getSlaDueAt()).isNull();
+
+        ticket.transitionTo(TicketStatus.IN_PROGRESS, AGENT, null, OFFICE, at("2026-10-19T07:00"));
+        assertThat(ticket.getSlaDueAt()).isEqualTo(at("2026-10-19T15:00")); // 6 h left, from 09:00
+    }
+
+    @Test
+    void changingTheCalendarKeepsElapsedTimeAndMovesTheDueMoment() {
+        Instant opened = at("2026-10-14T10:00"); // Wednesday
+        Ticket ticket = Ticket.open("VPN", "down", TicketPriority.HIGH, TicketCategory.NETWORK, "cust1",
+                Duration.ofHours(8), BusinessCalendar.ALWAYS, opened);
+        ticket.startFirstResponseClock(Duration.ofHours(1), BusinessCalendar.ALWAYS);
+        assertThat(ticket.getSlaDueAt()).isEqualTo(at("2026-10-14T18:00"));
+
+        // 2 h later working hours are switched on: 6 h are left, counted in office hours (until 18:00 = 6 h).
+        Instant changed = at("2026-10-14T12:00");
+        ticket.rebaseSlaClocks(BusinessCalendar.ALWAYS, OFFICE, Duration.ofHours(1), changed);
+
+        assertThat(ticket.getSlaClock().elapsedBeforeRun()).isEqualTo(Duration.ofHours(2));
+        assertThat(ticket.getSlaDueAt()).isEqualTo(at("2026-10-14T18:00")); // 6 h left, Wednesday until closing
+        assertThat(ticket.getFirstResponseDueAt()).isEqualTo(at("2026-10-14T11:00"));
+    }
+
+    @Test
+    void calendarRulesAreComparedIgnoringUnusedSettings() {
+        BusinessCalendar sameOffice = new BusinessCalendar(true, ISTANBUL,
+                java.util.EnumSet.range(java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.FRIDAY),
+                java.time.LocalTime.of(9, 0), java.time.LocalTime.of(18, 0), java.util.Set.of());
+        BusinessCalendar shorter = new BusinessCalendar(true, ISTANBUL,
+                java.util.EnumSet.range(java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.FRIDAY),
+                java.time.LocalTime.of(9, 0), java.time.LocalTime.of(17, 0), java.util.Set.of());
+        BusinessCalendar disabled = new BusinessCalendar(false, ISTANBUL, java.util.Set.of(),
+                java.time.LocalTime.of(8, 0), java.time.LocalTime.of(9, 0), java.util.Set.of());
+
+        assertThat(OFFICE.sameRules(sameOffice)).isTrue();
+        assertThat(OFFICE.sameRules(shorter)).isFalse();
+        assertThat(OFFICE.sameRules(BusinessCalendar.ALWAYS)).isFalse();
+        assertThat(disabled.sameRules(BusinessCalendar.ALWAYS)).isTrue();
+    }
+
     private static Ticket resolvedTicket() {
         Ticket ticket = newTicket();
         ticket.transitionTo(TicketStatus.IN_PROGRESS, AGENT, null, T0.plusSeconds(60));

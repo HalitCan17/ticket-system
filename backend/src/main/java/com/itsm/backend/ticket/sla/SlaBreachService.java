@@ -48,14 +48,17 @@ public class SlaBreachService {
     private final TicketActivityRepository activities;
     private final NotificationService notifications;
     private final SlaProperties sla;
+    private final BusinessCalendarProvider calendar;
     private final TransactionTemplate transaction;
 
     public SlaBreachService(TicketRepository tickets, TicketActivityRepository activities,
-            NotificationService notifications, SlaProperties sla, PlatformTransactionManager transactionManager) {
+            NotificationService notifications, SlaProperties sla, BusinessCalendarProvider calendar,
+            PlatformTransactionManager transactionManager) {
         this.tickets = tickets;
         this.activities = activities;
         this.notifications = notifications;
         this.sla = sla;
+        this.calendar = calendar;
         this.transaction = new TransactionTemplate(transactionManager);
     }
 
@@ -69,7 +72,8 @@ public class SlaBreachService {
         return scan(tickets::findSlaWarningCandidateIds, now, (ticket, at) -> {
             // Re-check with the domain clock inside the transaction.
             if (ticket.getSlaWarningNotifiedAt() != null || ticket.getSlaState() != SlaState.RUNNING
-                    || !ticket.getSlaClock().isWarningDue(at) || ticket.getSlaClock().isBreached(at)) {
+                    || !ticket.getSlaClock().isWarningDue(at, calendar.current())
+                    || ticket.getSlaClock().isBreached(at, calendar.current())) {
                 return false;
             }
             ticket.markSlaWarningNotified(at);
@@ -95,12 +99,12 @@ public class SlaBreachService {
     public int notifyBreaches(Instant now) {
         return scan(tickets::findSlaBreachCandidateIds, now, (ticket, at) -> {
             if (ticket.getSlaBreachNotifiedAt() != null || ticket.getSlaState() == SlaState.STOPPED
-                    || !ticket.getSlaClock().isBreached(at)) {
+                    || !ticket.getSlaClock().isBreached(at, calendar.current())) {
                 return false;
             }
             ticket.markSlaBreachNotified(at);
             TicketPriority previous = ticket.escalate(sla.escalation().raisePriority(), sla::targetFor,
-                    sla::firstResponseFor, at);
+                    sla::firstResponseFor, calendar.current(), at);
             if (previous != null) {
                 activities.save(new TicketActivity(ticket.getId(), TicketActivityType.PRIORITY_CHANGED,
                         previous.name(), ticket.getPriority().name(), "SLA aşıldı: otomatik eskalasyon",

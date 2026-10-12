@@ -7,6 +7,7 @@ import java.util.List;
 import com.itsm.backend.common.error.NotFoundException;
 import com.itsm.backend.group.GroupRouting;
 import com.itsm.backend.security.CurrentUser;
+import com.itsm.backend.ticket.domain.BusinessCalendar;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketStatusHistory;
@@ -18,6 +19,7 @@ import com.itsm.backend.ticket.event.TicketStatusChangedEvent;
 import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.ticket.repository.TicketSpecifications;
 import com.itsm.backend.ticket.repository.TicketStatusHistoryRepository;
+import com.itsm.backend.ticket.sla.BusinessCalendarProvider;
 import com.itsm.backend.ticket.sla.SlaProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,26 +39,29 @@ public class TicketService {
     private final SlaProperties sla;
     private final ApplicationEventPublisher events;
     private final GroupRouting routing;
+    private final BusinessCalendarProvider calendar;
     private final Clock clock;
 
     public TicketService(TicketRepository tickets, TicketStatusHistoryRepository history, SlaProperties sla,
-            ApplicationEventPublisher events, GroupRouting routing, Clock clock) {
+            ApplicationEventPublisher events, GroupRouting routing, BusinessCalendarProvider calendar, Clock clock) {
         this.tickets = tickets;
         this.history = history;
         this.sla = sla;
         this.events = events;
         this.routing = routing;
+        this.calendar = calendar;
         this.clock = clock;
     }
 
     @Transactional
     public Ticket create(CurrentUser user, CreateTicketRequest request) {
         Instant now = clock.instant();
+        BusinessCalendar hours = calendar.current();
         Ticket ticket = tickets.save(Ticket.open(request.title().strip(), request.description().strip(),
-                request.priority(), request.category(), user.id(), sla.targetFor(request.priority()), now));
+                request.priority(), request.category(), user.id(), sla.targetFor(request.priority()), hours, now));
         history.save(new TicketStatusHistory(ticket.getId(), null, TicketStatus.NEW, user.id(), null, now));
         log.info("Ticket {} created by {} with priority {}", ticket.getId(), user.id(), ticket.getPriority());
-        ticket.startFirstResponseClock(sla.firstResponseFor(ticket.getPriority()));
+        ticket.startFirstResponseClock(sla.firstResponseFor(ticket.getPriority()), hours);
         routing.routeNewTicket(ticket, now);
         return ticket;
     }
@@ -78,7 +83,7 @@ public class TicketService {
         Instant now = clock.instant();
         String note = normalize(request.note());
 
-        TicketStatus previous = ticket.transitionTo(request.targetStatus(), user, note, now);
+        TicketStatus previous = ticket.transitionTo(request.targetStatus(), user, note, calendar.current(), now);
         if (ticket.getStatus() == TicketStatus.RESOLVED && user.isStaff()) {
             ticket.recordFirstResponse(now); // the resolution note is visible to the customer
         }

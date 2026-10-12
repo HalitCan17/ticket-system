@@ -26,6 +26,15 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     List<Long> findAutoCloseCandidateIds(@Param("cutoff") Instant cutoff, @Param("afterId") long afterId,
             Pageable pageable);
 
+    /** Tickets whose SLA clocks are still relevant: open ones (see the business calendar). */
+    @Query("""
+            select t from Ticket t
+            where t.status in (com.itsm.backend.ticket.domain.TicketStatus.NEW,
+                               com.itsm.backend.ticket.domain.TicketStatus.IN_PROGRESS,
+                               com.itsm.backend.ticket.domain.TicketStatus.WAITING_FOR_CUSTOMER)
+            order by t.id""")
+    List<Ticket> findOpenForSlaRebase();
+
     /** Open tickets of a group that are assigned to a given user (released when the user leaves the group). */
     @Query("""
             select t from Ticket t
@@ -63,16 +72,15 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
 
     /**
      * Ids of open (not RESOLVED/CLOSED) tickets whose SLA is exceeded at {@code now} and not yet notified,
-     * in id order after {@code afterId}. The elapsed time is computed like
-     * {@link com.itsm.backend.ticket.domain.SlaClock#elapsed}.
+     * in id order after {@code afterId}. A running clock is breached once its stored due moment (which follows the
+     * business calendar) has passed; a paused clock once its accumulated time exceeds the target.
      */
     @Query(value = """
             select id from tickets
             where sla_breach_notified_at is null
               and status not in ('RESOLVED', 'CLOSED')
-              and sla_elapsed_seconds
-                  + coalesce(extract(epoch from (cast(:now as timestamptz) - sla_running_since)), 0)
-                  > sla_target_seconds
+              and ((sla_running_since is not null and sla_due_at < :now)
+                   or (sla_running_since is null and sla_elapsed_seconds > sla_target_seconds))
               and id > :afterId
             order by id
             limit :limit""", nativeQuery = true)

@@ -10,6 +10,7 @@ import java.util.Map;
 import com.itsm.backend.common.web.PageResponse;
 import com.itsm.backend.group.GroupDirectory;
 import com.itsm.backend.security.CurrentUser;
+import com.itsm.backend.ticket.domain.BusinessCalendar;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketAssignment;
 import com.itsm.backend.ticket.domain.TicketStatus;
@@ -18,6 +19,7 @@ import com.itsm.backend.ticket.dto.FirstResponseResponse;
 import com.itsm.backend.ticket.dto.RatingResponse;
 import com.itsm.backend.ticket.dto.SlaResponse;
 import com.itsm.backend.ticket.dto.TicketResponse;
+import com.itsm.backend.ticket.sla.BusinessCalendarProvider;
 import com.itsm.backend.user.UserDirectory;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
@@ -30,13 +32,15 @@ public class TicketResponseAssembler {
     private final AutoCloseProperties autoClose;
     private final UserDirectory userDirectory;
     private final GroupDirectory groups;
+    private final BusinessCalendarProvider calendar;
 
     public TicketResponseAssembler(Clock clock, AutoCloseProperties autoClose, UserDirectory userDirectory,
-            GroupDirectory groups) {
+            GroupDirectory groups, BusinessCalendarProvider calendar) {
         this.clock = clock;
         this.autoClose = autoClose;
         this.userDirectory = userDirectory;
         this.groups = groups;
+        this.calendar = calendar;
     }
 
     public TicketResponse toResponse(Ticket ticket, CurrentUser viewer) {
@@ -54,6 +58,7 @@ public class TicketResponseAssembler {
 
     private TicketResponse toResponse(Ticket ticket, CurrentUser viewer, Map<String, String> names,
             Map<Long, String> groupNames, Instant now) {
+        BusinessCalendar hours = calendar.current();
         Instant autoCloseAt = ticket.getStatus() == TicketStatus.RESOLVED && ticket.getResolvedAt() != null
                 ? ticket.getResolvedAt().plus(autoClose.after())
                 : null;
@@ -76,7 +81,7 @@ public class TicketResponseAssembler {
                 ticket.getResolvedAt(),
                 ticket.getClosedAt(),
                 TicketWorkflow.allowedTargets(ticket.getStatus(), viewer, ticket.getRequesterId()),
-                SlaResponse.of(ticket.getSlaState(), ticket.getSlaClock(), now),
+                SlaResponse.of(ticket.getSlaState(), ticket.getSlaClock(), hours, now),
                 FirstResponseResponse.of(ticket, now),
                 ticket.getEscalatedAt(),
                 autoCloseAt,

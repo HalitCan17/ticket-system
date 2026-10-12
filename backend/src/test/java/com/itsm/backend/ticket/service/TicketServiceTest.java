@@ -17,6 +17,8 @@ import java.util.Optional;
 import com.itsm.backend.common.error.ForbiddenException;
 import com.itsm.backend.common.error.NotFoundException;
 import com.itsm.backend.group.GroupRouting;
+import com.itsm.backend.ticket.domain.BusinessCalendar;
+import com.itsm.backend.ticket.sla.BusinessCalendarProvider;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.security.Role;
 import com.itsm.backend.ticket.domain.Ticket;
@@ -44,7 +46,14 @@ class TicketServiceTest {
     final TicketStatusHistoryRepository history = mock(TicketStatusHistoryRepository.class);
     final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     final TicketService service = new TicketService(
-            tickets, history, new SlaProperties(null), events, mock(GroupRouting.class), Clock.fixed(NOW, ZoneOffset.UTC));
+            tickets, history, new SlaProperties(null), events, mock(GroupRouting.class), alwaysOpen(),
+            Clock.fixed(NOW, ZoneOffset.UTC));
+
+    static BusinessCalendarProvider alwaysOpen() {
+        BusinessCalendarProvider provider = mock(BusinessCalendarProvider.class);
+        when(provider.current()).thenReturn(BusinessCalendar.ALWAYS);
+        return provider;
+    }
 
     final Ticket ticket = Ticket.open(
             "VPN", "down", TicketPriority.HIGH, TicketCategory.OTHER, "cust1", Duration.ofHours(8), NOW.minusSeconds(3600));
