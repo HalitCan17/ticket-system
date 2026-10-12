@@ -20,6 +20,7 @@ export function Layout() {
           <NavLink to="/tickets/new">Yeni talep</NavLink>
           {user.role === 'MANAGER' && <NavLink to="/dashboard">Panel</NavLink>}
           {user.role === 'MANAGER' && <NavLink to="/groups">Gruplar</NavLink>}
+          {user.role === 'MANAGER' && <NavLink to="/sla">SLA</NavLink>}
           {user.role === 'MANAGER' && <NavLink to="/canned-responses">Hazır yanıtlar</NavLink>}
         </nav>
         <div className={styles.user}>

@@ -3,6 +3,7 @@ import type { CannedResponsesApi } from './cannedResponses.ts';
 import type { GroupsApi } from './groups.ts';
 import type { NotificationsApi } from './notifications.ts';
 import type { ReportsApi } from './reports.ts';
+import type { SlaCalendarApi } from './slaCalendar.ts';
 import type { TicketsApi } from './tickets.ts';
 
 export interface Api {
@@ -11,6 +12,7 @@ export interface Api {
   cannedResponses: CannedResponsesApi;
   reports: ReportsApi;
   groups: GroupsApi;
+  slaCalendar: SlaCalendarApi;
 }
 
 export const ApiContext = createContext<Api | null>(null);
@@ -41,4 +43,8 @@ export function useReportsApi(): ReportsApi {
 
 export function useGroupsApi(): GroupsApi {
   return useApi().groups;
+}
+
+export function useSlaCalendarApi(): SlaCalendarApi {
+  return useApi().slaCalendar;
 }

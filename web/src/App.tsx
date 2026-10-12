@@ -7,6 +7,7 @@ import { ApiError, createApiClient } from './api/client.ts';
 import { groupsApi } from './api/groups.ts';
 import { notificationsApi } from './api/notifications.ts';
 import { reportsApi } from './api/reports.ts';
+import { slaCalendarApi } from './api/slaCalendar.ts';
 import { ticketsApi } from './api/tickets.ts';
 import { useAuth } from './auth/AuthContext.tsx';
 import { Layout } from './components/Layout.tsx';
@@ -15,6 +16,7 @@ import { DashboardPage } from './pages/DashboardPage.tsx';
 import { GroupsPage } from './pages/GroupsPage.tsx';
 import { NewTicketPage } from './pages/NewTicketPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
+import { SlaSettingsPage } from './pages/SlaSettingsPage.tsx';
 import { TicketDetailPage } from './pages/TicketDetailPage.tsx';
 import { TicketListPage } from './pages/TicketListPage.tsx';
 
@@ -30,6 +32,7 @@ export const routes: RouteObject[] = [
       { path: 'canned-responses', element: <CannedResponsesPage /> },
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'groups', element: <GroupsPage /> },
+      { path: 'sla', element: <SlaSettingsPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
@@ -58,6 +61,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       cannedResponses: cannedResponsesApi(client),
       reports: reportsApi(client),
       groups: groupsApi(client),
+      slaCalendar: slaCalendarApi(client),
     };
   }, [getToken]);
   const [queryClient] = useState(createQueryClient);

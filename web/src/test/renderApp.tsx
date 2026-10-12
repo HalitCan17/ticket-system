@@ -8,6 +8,7 @@ import type { CannedResponsesApi } from '../api/cannedResponses.ts';
 import type { GroupsApi } from '../api/groups.ts';
 import type { NotificationsApi } from '../api/notifications.ts';
 import type { ReportsApi } from '../api/reports.ts';
+import type { SlaCalendarApi } from '../api/slaCalendar.ts';
 import type { TicketsApi } from '../api/tickets.ts';
 import type { Role } from '../api/types.ts';
 import { AuthContext, type Auth } from '../auth/AuthContext.tsx';
@@ -81,6 +82,11 @@ export function fakeGroupsApi(overrides: Partial<GroupsApi> = {}): GroupsApi {
   };
 }
 
+/** A SlaCalendarApi without data; override what a test needs. */
+export function fakeSlaCalendarApi(overrides: Partial<SlaCalendarApi> = {}): SlaCalendarApi {
+  return { get: vi.fn(), save: vi.fn(), ...overrides };
+}
+
 /** Renders the real route tree with a fake signed-in user and API. */
 export function renderApp(
   path: string,
@@ -91,6 +97,7 @@ export function renderApp(
     canned?: CannedResponsesApi;
     reports?: ReportsApi;
     groups?: GroupsApi;
+    slaCalendar?: SlaCalendarApi;
   } = {},
 ) {
   const auth: Auth = {
@@ -103,18 +110,19 @@ export function renderApp(
   const cannedResponses = options.canned ?? fakeCannedResponsesApi();
   const reports = options.reports ?? fakeReportsApi();
   const groups = options.groups ?? fakeGroupsApi();
+  const slaCalendar = options.slaCalendar ?? fakeSlaCalendarApi();
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const queryClient = createQueryClient();
   queryClient.setDefaultOptions({ queries: { retry: false } });
 
   const result = render(
     <AuthContext.Provider value={auth}>
-      <ApiContext.Provider value={{ tickets: api, notifications, cannedResponses, reports, groups }}>
+      <ApiContext.Provider value={{ tickets: api, notifications, cannedResponses, reports, groups, slaCalendar }}>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>
       </ApiContext.Provider>
     </AuthContext.Provider>,
   );
-  return { ...result, auth, api, notifications, cannedResponses, reports, groups, router };
+  return { ...result, auth, api, notifications, cannedResponses, reports, groups, slaCalendar, router };
 }

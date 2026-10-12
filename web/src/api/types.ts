@@ -183,6 +183,43 @@ export interface TeamMember {
   averageRating: number | null;
 }
 
+export type WeekDay = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+export interface Holiday {
+  /** yyyy-mm-dd */
+  date: string;
+  name: string;
+}
+
+/** Business hours the SLA clocks run in, plus the (read-only) SLA targets they apply to. */
+export interface SlaCalendar {
+  enabled: boolean;
+  zoneId: string;
+  workDays: WeekDay[];
+  /** HH:mm */
+  start: string;
+  end: string;
+  holidays: Holiday[];
+  resolutionSeconds: Record<TicketPriority, number>;
+  firstResponseSeconds: Record<TicketPriority, number>;
+  raisePriorityOnBreach: boolean;
+}
+
+export interface SlaCalendarRequest {
+  enabled: boolean;
+  zoneId: string;
+  workDays: WeekDay[];
+  start: string;
+  end: string;
+  holidays: Holiday[];
+}
+
+export interface SlaCalendarUpdate {
+  calendar: SlaCalendar;
+  /** Open tickets whose due and warning moments were recalculated. */
+  recalculatedTickets: number;
+}
+
 export interface StaffMember {
   id: string;
   name: string;
