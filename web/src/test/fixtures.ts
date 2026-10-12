@@ -20,6 +20,8 @@ export function aTicket(overrides: Partial<Ticket> = {}): Ticket {
     status: 'NEW',
     priority: 'HIGH',
     category: 'OTHER',
+    groupId: null,
+    groupName: null,
     requesterId: 'cust-1',
     requesterName: 'Customer One',
     assigneeId: null,

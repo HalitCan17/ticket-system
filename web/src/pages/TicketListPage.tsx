@@ -32,10 +32,12 @@ function parseCategory(value: string | null): TicketCategory | undefined {
 /** 'me', 'unassigned' or a user id (from the dashboard's team table). */
 type Queue = string;
 
-const QUEUES: { value: Queue | undefined; label: string }[] = [
-  { value: undefined, label: 'Herkesin' },
-  { value: 'me', label: 'Bana atananlar' },
-  { value: 'unassigned', label: 'Atanmamışlar' },
+/** Work queue presets: a person filter (assignee) or a group filter, never both. */
+const QUEUES: { queue?: Queue; group?: string; label: string }[] = [
+  { label: 'Herkesin' },
+  { queue: 'me', label: 'Bana atananlar' },
+  { queue: 'unassigned', label: 'Atanmamışlar' },
+  { group: 'mine', label: 'Grubumun talepleri' },
 ];
 
 function parseQueue(value: string | null): Queue | undefined {
@@ -54,6 +56,8 @@ interface Filters {
   status?: TicketStatus;
   /** Staff only. */
   queue?: Queue;
+  /** Staff only: 'mine' or a group id. */
+  group?: string;
   sortBySla: boolean;
   page: number;
 }
@@ -69,6 +73,7 @@ export function TicketListPage() {
     category: parseCategory(searchParams.get('category')),
     status: parseStatus(searchParams.get('status')),
     queue: staff ? parseQueue(searchParams.get('assignee')) : undefined,
+    group: staff ? parseQueue(searchParams.get('group')) : undefined,
     sortBySla: staff && searchParams.get('sort') === 'sla',
     page: Math.max(0, Number(searchParams.get('page') ?? 0) || 0),
   };
@@ -83,6 +88,7 @@ export function TicketListPage() {
         category: filters.category,
         status: filters.status,
         assignee: filters.queue,
+        group: filters.group,
         sort: filters.sortBySla ? 'SLA' : undefined,
         page: filters.page,
         size: PAGE_SIZE,
@@ -98,6 +104,7 @@ export function TicketListPage() {
     if (merged.category) params.set('category', merged.category);
     if (merged.status) params.set('status', merged.status);
     if (merged.queue) params.set('assignee', merged.queue);
+    if (merged.group) params.set('group', merged.group);
     if (merged.sortBySla) params.set('sort', 'sla');
     if (merged.page) params.set('page', String(merged.page));
     setSearchParams(params);
@@ -111,7 +118,11 @@ export function TicketListPage() {
   }, [text]);
 
   const filtered =
-    filters.q !== '' || filters.category !== undefined || filters.status !== undefined || filters.queue !== undefined;
+    filters.q !== '' ||
+    filters.category !== undefined ||
+    filters.status !== undefined ||
+    filters.queue !== undefined ||
+    filters.group !== undefined;
 
   return (
     <section>
@@ -152,18 +163,34 @@ export function TicketListPage() {
               </button>
             </span>
           )}
-          <div className={styles.segmented} role="group" aria-label="İş kuyruğu">
-            {QUEUES.map((q) => (
+          {filters.group && filters.group !== 'mine' && (
+            <span className={styles.personQueue}>
+              Grup: {tickets.data?.items[0]?.groupName ?? 'seçili grup'}
               <button
-                key={q.label}
                 type="button"
-                aria-pressed={filters.queue === q.value}
-                className={filters.queue === q.value ? styles.segmentActive : styles.segment}
-                onClick={() => update({ queue: q.value })}
+                className="secondary"
+                aria-label="Grup filtresini kaldır"
+                onClick={() => update({ group: undefined })}
               >
-                {q.label}
+                ×
               </button>
-            ))}
+            </span>
+          )}
+          <div className={styles.segmented} role="group" aria-label="İş kuyruğu">
+            {QUEUES.map((q) => {
+              const active = filters.queue === q.queue && filters.group === q.group;
+              return (
+                <button
+                  key={q.label}
+                  type="button"
+                  aria-pressed={active}
+                  className={active ? styles.segmentActive : styles.segment}
+                  onClick={() => update({ queue: q.queue, group: q.group })}
+                >
+                  {q.label}
+                </button>
+              );
+            })}
           </div>
           <label className={styles.filter}>
             <span>Sıralama</span>
@@ -234,6 +261,7 @@ export function TicketListPage() {
                   <th>#</th>
                   <th>Başlık</th>
                   <th>Kategori</th>
+                  {staff && <th>Grup</th>}
                   <th>Öncelik</th>
                   <th>Durum</th>
                   <th>SLA</th>
@@ -250,6 +278,7 @@ export function TicketListPage() {
                       <Link to={`/tickets/${ticket.id}`}>{ticket.title}</Link>
                     </td>
                     <td className={styles.muted}>{CATEGORY_LABELS[ticket.category]}</td>
+                    {staff && <td className={styles.muted}>{ticket.groupName ?? '—'}</td>}
                     <td>
                       <PriorityBadge priority={ticket.priority} />
                     </td>

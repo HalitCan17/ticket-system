@@ -26,6 +26,8 @@ export interface TicketListParams {
   status?: TicketStatus;
   /** Staff work queue: me, unassigned or a user id. */
   assignee?: string;
+  /** Staff: 'mine' (my groups) or a group id. */
+  group?: string;
   /** Most urgent SLA first instead of newest first. */
   sort?: 'SLA';
   page?: number;
@@ -42,6 +44,7 @@ export function ticketsApi(client: ApiClient) {
       if (params.status) query.set('status', params.status);
       if (params.assignee) query.set('assignee', params.assignee);
       if (params.sort) query.set('sort', params.sort);
+      if (params.group) query.set('group', params.group);
       if (params.page !== undefined) query.set('page', String(params.page));
       if (params.size !== undefined) query.set('size', String(params.size));
       const suffix = query.size > 0 ? `?${query}` : '';

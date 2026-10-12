@@ -4,6 +4,7 @@ import { Navigate, type RouteObject } from 'react-router';
 import { ApiContext } from './api/ApiContext.tsx';
 import { cannedResponsesApi } from './api/cannedResponses.ts';
 import { ApiError, createApiClient } from './api/client.ts';
+import { groupsApi } from './api/groups.ts';
 import { notificationsApi } from './api/notifications.ts';
 import { reportsApi } from './api/reports.ts';
 import { ticketsApi } from './api/tickets.ts';
@@ -11,6 +12,7 @@ import { useAuth } from './auth/AuthContext.tsx';
 import { Layout } from './components/Layout.tsx';
 import { CannedResponsesPage } from './pages/CannedResponsesPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
+import { GroupsPage } from './pages/GroupsPage.tsx';
 import { NewTicketPage } from './pages/NewTicketPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { TicketDetailPage } from './pages/TicketDetailPage.tsx';
@@ -27,6 +29,7 @@ export const routes: RouteObject[] = [
       { path: 'tickets/:id', element: <TicketDetailPage /> },
       { path: 'canned-responses', element: <CannedResponsesPage /> },
       { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'groups', element: <GroupsPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
@@ -54,6 +57,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       notifications: notificationsApi(client),
       cannedResponses: cannedResponsesApi(client),
       reports: reportsApi(client),
+      groups: groupsApi(client),
     };
   }, [getToken]);
   const [queryClient] = useState(createQueryClient);

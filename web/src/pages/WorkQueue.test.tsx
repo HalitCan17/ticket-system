@@ -93,7 +93,7 @@ describe('assignment and editing on the ticket page', () => {
     });
     renderApp('/tickets/5', { role: 'MANAGER', api });
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Önceliği / kategoriyi değiştir' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Önceliği / kategoriyi / grubu değiştir' }));
     const form = screen.getByRole('form', { name: 'Talebi düzenle' });
     const save = within(form).getByRole('button', { name: 'Kaydet' });
     expect(save).toBeDisabled(); // nothing changed

@@ -39,6 +39,9 @@ export interface Ticket {
   status: TicketStatus;
   priority: TicketPriority;
   category: TicketCategory;
+  /** Support group handling the ticket; null = none. */
+  groupId: number | null;
+  groupName: string | null;
   requesterId: string;
   requesterName: string | null;
   assigneeId: string | null;
@@ -101,15 +104,17 @@ export interface UpdateTicketRequest {
   category?: TicketCategory;
   /** Required when the priority changes. */
   reason?: string;
+  groupId?: number;
+  removeGroup?: boolean;
 }
 
-export type ActivityType = 'ASSIGNEE_CHANGED' | 'PRIORITY_CHANGED' | 'CATEGORY_CHANGED';
+export type ActivityType = 'ASSIGNEE_CHANGED' | 'PRIORITY_CHANGED' | 'CATEGORY_CHANGED' | 'GROUP_CHANGED';
 
 /** Staff-only log of assignment, priority and category changes. */
 export interface Activity {
   id: number;
   type: ActivityType;
-  /** User id for ASSIGNEE_CHANGED (null = unassigned), otherwise the enum name. */
+  /** User id (ASSIGNEE_CHANGED), group id (GROUP_CHANGED) or the enum name; null = none. */
   oldValue: string | null;
   oldName: string | null;
   newValue: string | null;
@@ -167,7 +172,35 @@ export interface TeamMember {
 export interface StaffMember {
   id: string;
   name: string;
-  role: Role;
+  role: Role | null;
+}
+
+export type AssignmentMode = 'NONE' | 'ROUND_ROBIN' | 'LEAST_LOADED';
+
+export interface SupportGroup {
+  id: number;
+  name: string;
+  description: string | null;
+  assignmentMode: AssignmentMode;
+  /** Categories routed to this group. */
+  categories: TicketCategory[];
+  members: StaffMember[];
+}
+
+export interface GroupRequest {
+  name: string;
+  description?: string;
+  assignmentMode: AssignmentMode;
+}
+
+/** Open work of a group now; id null = tickets without a group. */
+export interface GroupWorkload {
+  id: number | null;
+  name: string | null;
+  members: number;
+  openWork: number;
+  unassignedOpen: number;
+  breachedOpen: number;
 }
 
 export interface RateTicketRequest {

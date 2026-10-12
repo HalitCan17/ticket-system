@@ -41,6 +41,7 @@ function Dashboard() {
 
   const summary = useQuery({ queryKey: ['reports', 'summary', days], queryFn: () => api.summary(days) });
   const team = useQuery({ queryKey: ['reports', 'team', days], queryFn: () => api.team(days) });
+  const groups = useQuery({ queryKey: ['reports', 'groups'], queryFn: () => api.groups() });
 
   const s = summary.data;
 
@@ -143,6 +144,45 @@ function Dashboard() {
             </figure>
           </div>
         </>
+      )}
+
+      <h2 className={styles.sectionTitle}>Gruplar (şu an)</h2>
+      {groups.isError && <ErrorMessage error={groups.error} />}
+      {groups.data && groups.data.length > 0 && (
+        <div className={styles.tableWrap}>
+          <table className={styles.table} aria-label="Grup iş yükü">
+            <thead>
+              <tr>
+                <th>Grup</th>
+                <th className={styles.num}>Üye</th>
+                <th className={styles.num}>Açık iş</th>
+                <th className={styles.num}>Atanmamış</th>
+                <th className={styles.num}>SLA'sı aşılmış</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groups.data.map((group) => (
+                <tr key={group.id ?? 'none'}>
+                  <td>
+                    {group.id === null ? (
+                      <span className={styles.muted}>Grupsuz talepler</span>
+                    ) : (
+                      <Link to={`/tickets?group=${group.id}&sort=sla`}>{group.name}</Link>
+                    )}
+                  </td>
+                  <td className={`${styles.num} ${group.id !== null && group.members === 0 ? styles.danger : ''}`}>
+                    {group.id === null ? '—' : group.members}
+                  </td>
+                  <td className={styles.num}>{group.openWork}</td>
+                  <td className={styles.num}>{group.unassignedOpen}</td>
+                  <td className={`${styles.num} ${group.breachedOpen > 0 ? styles.danger : ''}`}>
+                    {group.breachedOpen}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <h2 className={styles.sectionTitle}>Ekip</h2>

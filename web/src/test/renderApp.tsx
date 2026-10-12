@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import { createQueryClient, routes } from '../App.tsx';
 import { ApiContext } from '../api/ApiContext.tsx';
 import type { CannedResponsesApi } from '../api/cannedResponses.ts';
+import type { GroupsApi } from '../api/groups.ts';
 import type { NotificationsApi } from '../api/notifications.ts';
 import type { ReportsApi } from '../api/reports.ts';
 import type { TicketsApi } from '../api/tickets.ts';
@@ -64,7 +65,20 @@ export function fakeCannedResponsesApi(overrides: Partial<CannedResponsesApi> = 
 
 /** A ReportsApi without data; override what a test needs. */
 export function fakeReportsApi(overrides: Partial<ReportsApi> = {}): ReportsApi {
-  return { summary: vi.fn(), team: vi.fn().mockResolvedValue([]), ...overrides };
+  return { summary: vi.fn(), team: vi.fn().mockResolvedValue([]), groups: vi.fn().mockResolvedValue([]), ...overrides };
+}
+
+/** A GroupsApi without groups; override what a test needs. */
+export function fakeGroupsApi(overrides: Partial<GroupsApi> = {}): GroupsApi {
+  return {
+    list: vi.fn().mockResolvedValue([]),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn().mockResolvedValue(undefined),
+    setMembers: vi.fn(),
+    setRoutes: vi.fn(),
+    ...overrides,
+  };
 }
 
 /** Renders the real route tree with a fake signed-in user and API. */
@@ -76,6 +90,7 @@ export function renderApp(
     notifications?: NotificationsApi;
     canned?: CannedResponsesApi;
     reports?: ReportsApi;
+    groups?: GroupsApi;
   } = {},
 ) {
   const auth: Auth = {
@@ -87,18 +102,19 @@ export function renderApp(
   const notifications = options.notifications ?? fakeNotificationsApi();
   const cannedResponses = options.canned ?? fakeCannedResponsesApi();
   const reports = options.reports ?? fakeReportsApi();
+  const groups = options.groups ?? fakeGroupsApi();
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const queryClient = createQueryClient();
   queryClient.setDefaultOptions({ queries: { retry: false } });
 
   const result = render(
     <AuthContext.Provider value={auth}>
-      <ApiContext.Provider value={{ tickets: api, notifications, cannedResponses, reports }}>
+      <ApiContext.Provider value={{ tickets: api, notifications, cannedResponses, reports, groups }}>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>
       </ApiContext.Provider>
     </AuthContext.Provider>,
   );
-  return { ...result, auth, api, notifications, cannedResponses, reports, router };
+  return { ...result, auth, api, notifications, cannedResponses, reports, groups, router };
 }

@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { CannedResponsesApi } from './cannedResponses.ts';
+import type { GroupsApi } from './groups.ts';
 import type { NotificationsApi } from './notifications.ts';
 import type { ReportsApi } from './reports.ts';
 import type { TicketsApi } from './tickets.ts';
@@ -9,6 +10,7 @@ export interface Api {
   notifications: NotificationsApi;
   cannedResponses: CannedResponsesApi;
   reports: ReportsApi;
+  groups: GroupsApi;
 }
 
 export const ApiContext = createContext<Api | null>(null);
@@ -35,4 +37,8 @@ export function useCannedResponsesApi(): CannedResponsesApi {
 
 export function useReportsApi(): ReportsApi {
   return useApi().reports;
+}
+
+export function useGroupsApi(): GroupsApi {
+  return useApi().groups;
 }
