@@ -3,10 +3,12 @@ package com.itsm.backend.ticket.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import com.itsm.backend.common.web.PageResponse;
+import com.itsm.backend.group.GroupDirectory;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketAssignment;
@@ -26,25 +28,31 @@ public class TicketResponseAssembler {
     private final Clock clock;
     private final AutoCloseProperties autoClose;
     private final UserDirectory userDirectory;
+    private final GroupDirectory groups;
 
-    public TicketResponseAssembler(Clock clock, AutoCloseProperties autoClose, UserDirectory userDirectory) {
+    public TicketResponseAssembler(Clock clock, AutoCloseProperties autoClose, UserDirectory userDirectory,
+            GroupDirectory groups) {
         this.clock = clock;
         this.autoClose = autoClose;
         this.userDirectory = userDirectory;
+        this.groups = groups;
     }
 
     public TicketResponse toResponse(Ticket ticket, CurrentUser viewer) {
-        return toResponse(ticket, viewer, userDirectory.displayNames(userIds(List.of(ticket))), clock.instant());
+        return toResponse(ticket, viewer, userDirectory.displayNames(userIds(List.of(ticket))),
+                groups.names(Collections.singletonList(ticket.getGroupId())), clock.instant());
     }
 
     /** Names for the whole page are loaded with a single query. */
     public PageResponse<TicketResponse> toPage(Page<Ticket> page, CurrentUser viewer) {
         Map<String, String> names = userDirectory.displayNames(userIds(page.getContent()));
+        Map<Long, String> groupNames = groups.names(page.getContent().stream().map(Ticket::getGroupId).toList());
         Instant now = clock.instant();
-        return PageResponse.of(page, ticket -> toResponse(ticket, viewer, names, now));
+        return PageResponse.of(page, ticket -> toResponse(ticket, viewer, names, groupNames, now));
     }
 
-    private TicketResponse toResponse(Ticket ticket, CurrentUser viewer, Map<String, String> names, Instant now) {
+    private TicketResponse toResponse(Ticket ticket, CurrentUser viewer, Map<String, String> names,
+            Map<Long, String> groupNames, Instant now) {
         Instant autoCloseAt = ticket.getStatus() == TicketStatus.RESOLVED && ticket.getResolvedAt() != null
                 ? ticket.getResolvedAt().plus(autoClose.after())
                 : null;
@@ -55,6 +63,8 @@ public class TicketResponseAssembler {
                 ticket.getStatus(),
                 ticket.getPriority(),
                 ticket.getCategory(),
+                ticket.getGroupId(),
+                ticket.getGroupId() == null ? null : groupNames.get(ticket.getGroupId()),
                 ticket.getRequesterId(),
                 names.get(ticket.getRequesterId()),
                 ticket.getAssigneeId(),

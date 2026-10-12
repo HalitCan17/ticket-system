@@ -6,8 +6,10 @@ import java.util.List;
 import java.util.Objects;
 
 import com.itsm.backend.common.error.BadRequestException;
+import com.itsm.backend.common.error.ConflictException;
 import com.itsm.backend.common.error.ForbiddenException;
 import com.itsm.backend.common.error.NotFoundException;
+import com.itsm.backend.group.GroupRouting;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketActivity;
@@ -39,15 +41,18 @@ public class TicketManagementService {
     private final TicketActivityRepository activities;
     private final UserDirectory userDirectory;
     private final SlaProperties sla;
+    private final GroupRouting routing;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public TicketManagementService(TicketService tickets, TicketActivityRepository activities,
-            UserDirectory userDirectory, SlaProperties sla, ApplicationEventPublisher events, Clock clock) {
+            UserDirectory userDirectory, SlaProperties sla, GroupRouting routing, ApplicationEventPublisher events,
+            Clock clock) {
         this.tickets = tickets;
         this.activities = activities;
         this.userDirectory = userDirectory;
         this.sla = sla;
+        this.routing = routing;
         this.events = events;
         this.clock = clock;
     }
@@ -74,8 +79,9 @@ public class TicketManagementService {
     /** Changes priority and/or category; unchanged values are ignored. */
     @Transactional
     public Ticket update(CurrentUser user, long id, UpdateTicketRequest request) {
-        if (request.priority() == null && request.category() == null) {
-            throw new BadRequestException("NOTHING_TO_UPDATE", "Give a priority or a category to change.");
+        boolean changesGroup = request.groupId() != null || Boolean.TRUE.equals(request.removeGroup());
+        if (request.priority() == null && request.category() == null && !changesGroup) {
+            throw new BadRequestException("NOTHING_TO_UPDATE", "Give a priority, a category or a group to change.");
         }
         Ticket ticket = tickets.getVisibleTicket(user, id);
         requireStaff(user, "TICKET_EDIT_NOT_ALLOWED");
@@ -95,6 +101,14 @@ public class TicketManagementService {
             activities.save(new TicketActivity(ticket.getId(), TicketActivityType.CATEGORY_CHANGED, previous.name(),
                     request.category().name(), null, user.id(), now));
             log.info("Ticket {} category {} -> {} by {}", ticket.getId(), previous, request.category(), user.id());
+            routing.followCategory(ticket, user.id(), now);
+        }
+        if (changesGroup) {
+            if (ticket.isClosed()) {
+                throw new ConflictException("TICKET_CLOSED", "A closed ticket cannot be changed.");
+            }
+            // An explicit group wins over the category's route when both are given.
+            routing.moveTicket(ticket, Boolean.TRUE.equals(request.removeGroup()) ? null : request.groupId(), user.id(), now);
         }
         return ticket;
     }

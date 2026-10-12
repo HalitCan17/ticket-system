@@ -2,6 +2,7 @@ package com.itsm.backend.report;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -150,6 +151,39 @@ public class ReportQueries {
                             rs.getLong("open_work"), rs.getLong("breached"), rs.getLong("resolved"), ratings,
                             ratings == 0 ? null : rs.getDouble("avg_rating"));
                 });
+    }
+
+    /**
+     * Open work per support group (every group, also empty ones), plus a "no group" row when such tickets exist.
+     * Most open work first.
+     */
+    public List<GroupWorkloadResponse> groups(Instant now) {
+        String breached = BREACHED.replace("sla_", "t.sla_");
+        List<GroupWorkloadResponse> rows = new ArrayList<>(jdbc.query("""
+                select g.id, g.name,
+                       (select count(*) from support_group_members m where m.group_id = g.id) as members,
+                       count(t.id) as open_work,
+                       count(t.id) filter (where t.assignee_id is null) as unassigned,
+                       count(t.id) filter (where %2$s) as breached
+                from support_groups g
+                left join tickets t on t.group_id = g.id and t.%1$s
+                group by g.id, g.name
+                order by open_work desc, lower(g.name), g.id""".formatted(OPEN, breached),
+                params(null, now),
+                (rs, i) -> new GroupWorkloadResponse(rs.getLong("id"), rs.getString("name"), rs.getLong("members"),
+                        rs.getLong("open_work"), rs.getLong("unassigned"), rs.getLong("breached"))));
+        GroupWorkloadResponse none = jdbc.queryForObject("""
+                select count(*) as open_work,
+                       count(*) filter (where t.assignee_id is null) as unassigned,
+                       count(*) filter (where %2$s) as breached
+                from tickets t where t.group_id is null and t.%1$s""".formatted(OPEN, breached),
+                params(null, now),
+                (rs, i) -> new GroupWorkloadResponse(null, null, 0, rs.getLong("open_work"), rs.getLong("unassigned"),
+                        rs.getLong("breached")));
+        if (none != null && none.openWork() > 0) {
+            rows.add(none);
+        }
+        return rows;
     }
 
     private static MapSqlParameterSource params(Instant from, Instant now) {

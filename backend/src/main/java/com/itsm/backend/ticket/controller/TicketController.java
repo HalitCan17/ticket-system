@@ -4,8 +4,12 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 
+import com.itsm.backend.common.error.BadRequestException;
 import com.itsm.backend.common.web.PageResponse;
+import com.itsm.backend.group.GroupDirectory;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketActivity;
@@ -55,13 +59,15 @@ public class TicketController {
     private final TicketManagementService management;
     private final TicketResponseAssembler responses;
     private final UserDirectory userDirectory;
+    private final GroupDirectory groupDirectory;
 
     public TicketController(TicketService ticketService, TicketManagementService management,
-            TicketResponseAssembler responses, UserDirectory userDirectory) {
+            TicketResponseAssembler responses, UserDirectory userDirectory, GroupDirectory groupDirectory) {
         this.ticketService = ticketService;
         this.management = management;
         this.responses = responses;
         this.userDirectory = userDirectory;
+        this.groupDirectory = groupDirectory;
     }
 
     @PostMapping
@@ -81,6 +87,7 @@ public class TicketController {
             @RequestParam(required = false) @Size(max = 200) String q,
             @RequestParam(required = false) @Size(max = 64) String assignee,
             @RequestParam(required = false) TicketSort sort,
+            @RequestParam(required = false) @Size(max = 20) String group,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         // assignee: "me", "unassigned" or a user id (staff work queue)
@@ -88,9 +95,25 @@ public class TicketController {
         String assigneeId = assignee == null || assignee.isBlank() || unassigned ? null
                 : "me".equalsIgnoreCase(assignee) ? user.id() : assignee;
         boolean bySla = sort == TicketSort.SLA;
-        TicketSearch search = new TicketSearch(q, scope, status, category, assigneeId, unassigned, bySla);
+        TicketSearch search = new TicketSearch(q, scope, status, category, assigneeId, unassigned, bySla,
+                groupFilter(user, group));
         PageRequest pageable = bySla ? PageRequest.of(page, size) : PageRequest.of(page, size, NEWEST_FIRST);
         return responses.toPage(ticketService.list(user, search, pageable), user);
+    }
+
+    /** group: "mine" (the caller's groups) or a group id; null = no group filter. Staff only, see TicketSpecifications. */
+    private List<Long> groupFilter(CurrentUser user, String group) {
+        if (group == null || group.isBlank()) {
+            return null;
+        }
+        if ("mine".equalsIgnoreCase(group)) {
+            return groupDirectory.groupIdsOf(user.id());
+        }
+        try {
+            return List.of(Long.parseLong(group.strip()));
+        } catch (NumberFormatException e) {
+            throw new BadRequestException("INVALID_GROUP_FILTER", "group must be 'mine' or a group id.");
+        }
     }
 
     /** List order: newest first (default) or most urgent SLA first. */
@@ -133,7 +156,11 @@ public class TicketController {
             }
         }
         Map<String, String> names = userDirectory.displayNames(ids);
-        return entries.stream().map(entry -> ActivityResponse.from(entry, names)).toList();
+        Map<Long, String> groupNames = groupDirectory.names(entries.stream()
+                .filter(entry -> entry.getType() == TicketActivityType.GROUP_CHANGED)
+                .flatMap(entry -> Stream.of(entry.getOldValue(), entry.getNewValue()))
+                .filter(Objects::nonNull).map(Long::valueOf).toList());
+        return entries.stream().map(entry -> ActivityResponse.from(entry, names, groupNames)).toList();
     }
 
     @PostMapping("/{id}/rating")

@@ -1,5 +1,7 @@
 package com.itsm.backend.ticket.service;
 
+import java.util.List;
+
 import com.itsm.backend.ticket.domain.TicketCategory;
 import com.itsm.backend.ticket.domain.TicketScope;
 import com.itsm.backend.ticket.domain.TicketStatus;
@@ -12,12 +14,13 @@ import com.itsm.backend.ticket.domain.TicketStatus;
  * @param assigneeId only tickets assigned to this user (staff work queue)
  * @param unassigned only tickets nobody is assigned to (staff work queue)
  * @param sortBySla  most urgent first (see {@code TicketSpecifications}); otherwise newest first
+ * @param groupIds   only tickets of these support groups (staff); null = any group
  */
 public record TicketSearch(String text, TicketScope scope, TicketStatus status, TicketCategory category,
-        String assigneeId, boolean unassigned, boolean sortBySla) {
+        String assigneeId, boolean unassigned, boolean sortBySla, List<Long> groupIds) {
 
     public TicketSearch(String text, TicketScope scope, TicketStatus status, TicketCategory category) {
-        this(text, scope, status, category, null, false, false);
+        this(text, scope, status, category, null, false, false, null);
     }
 
     public static TicketSearch all() {

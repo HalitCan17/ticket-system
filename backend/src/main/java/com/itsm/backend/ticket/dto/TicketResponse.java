@@ -27,6 +27,8 @@ public record TicketResponse(
         TicketStatus status,
         TicketPriority priority,
         TicketCategory category,
+        Long groupId,
+        String groupName,
         String requesterId,
         String requesterName,
         String assigneeId,

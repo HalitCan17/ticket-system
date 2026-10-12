@@ -26,6 +26,11 @@ public class ReportController {
         return reports.summary(user, days);
     }
 
+    @GetMapping("/groups")
+    public List<GroupWorkloadResponse> groups(CurrentUser user) {
+        return reports.groups(user);
+    }
+
     @GetMapping("/team")
     public List<TeamMemberResponse> team(CurrentUser user,
             @RequestParam(defaultValue = "30") @Min(1) @Max(365) int days) {

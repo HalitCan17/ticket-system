@@ -49,6 +49,10 @@ public class Ticket {
     @Column(name = "assignee_id", length = 64)
     private String assigneeId;
 
+    /** Support group handling the ticket; set from the category's route (docs/adr/0014-support-groups.md). */
+    @Column(name = "group_id")
+    private Long groupId;
+
     @Column(name = "resolution_note", columnDefinition = "text")
     private String resolutionNote;
 
@@ -170,6 +174,33 @@ public class Ticket {
         assigneeId = newAssigneeId;
         updatedAt = now;
         return previous;
+    }
+
+    /**
+     * Moves the ticket to another support group (or none). The assignee stays.
+     *
+     * @return the previous group id
+     */
+    public Long moveToGroup(Long newGroupId, Instant now) {
+        Long previous = groupId;
+        groupId = newGroupId;
+        updatedAt = now;
+        return previous;
+    }
+
+    /**
+     * Assignment made by the application itself (group routing). Only an open, unassigned ticket is assigned;
+     * the actor rules of {@link TicketAssignment} do not apply to the system.
+     *
+     * @return whether the ticket was assigned
+     */
+    public boolean assignAutomatically(String userId, Instant now) {
+        if (assigneeId != null || isClosed()) {
+            return false;
+        }
+        assigneeId = userId;
+        updatedAt = now;
+        return true;
     }
 
     /** Staff may change priority and category while the ticket is not closed. */
@@ -343,6 +374,10 @@ public class Ticket {
 
     public String getRequesterId() {
         return requesterId;
+    }
+
+    public Long getGroupId() {
+        return groupId;
     }
 
     public String getAssigneeId() {

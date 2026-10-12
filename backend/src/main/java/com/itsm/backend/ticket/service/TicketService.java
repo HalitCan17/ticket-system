@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 
 import com.itsm.backend.common.error.NotFoundException;
+import com.itsm.backend.group.GroupRouting;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
@@ -35,14 +36,16 @@ public class TicketService {
     private final TicketStatusHistoryRepository history;
     private final SlaProperties sla;
     private final ApplicationEventPublisher events;
+    private final GroupRouting routing;
     private final Clock clock;
 
     public TicketService(TicketRepository tickets, TicketStatusHistoryRepository history, SlaProperties sla,
-            ApplicationEventPublisher events, Clock clock) {
+            ApplicationEventPublisher events, GroupRouting routing, Clock clock) {
         this.tickets = tickets;
         this.history = history;
         this.sla = sla;
         this.events = events;
+        this.routing = routing;
         this.clock = clock;
     }
 
@@ -53,6 +56,7 @@ public class TicketService {
                 request.priority(), request.category(), user.id(), sla.targetFor(request.priority()), now));
         history.save(new TicketStatusHistory(ticket.getId(), null, TicketStatus.NEW, user.id(), null, now));
         log.info("Ticket {} created by {} with priority {}", ticket.getId(), user.id(), ticket.getPriority());
+        routing.routeNewTicket(ticket, now);
         return ticket;
     }
 

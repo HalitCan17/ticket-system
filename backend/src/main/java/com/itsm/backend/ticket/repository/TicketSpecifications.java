@@ -43,6 +43,9 @@ public final class TicketSpecifications {
             if (requesterId == null && search.assigneeId() != null) {
                 where.add(cb.equal(root.get("assigneeId"), search.assigneeId()));
             }
+            if (requesterId == null && search.groupIds() != null) {
+                where.add(search.groupIds().isEmpty() ? cb.disjunction() : root.get("groupId").in(search.groupIds()));
+            }
             if (requesterId == null && search.unassigned()) {
                 where.add(cb.isNull(root.get("assigneeId")));
             }

@@ -16,6 +16,7 @@ import java.util.Optional;
 
 import com.itsm.backend.common.error.ForbiddenException;
 import com.itsm.backend.common.error.NotFoundException;
+import com.itsm.backend.group.GroupRouting;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.security.Role;
 import com.itsm.backend.ticket.domain.Ticket;
@@ -43,7 +44,7 @@ class TicketServiceTest {
     final TicketStatusHistoryRepository history = mock(TicketStatusHistoryRepository.class);
     final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     final TicketService service = new TicketService(
-            tickets, history, new SlaProperties(null), events, Clock.fixed(NOW, ZoneOffset.UTC));
+            tickets, history, new SlaProperties(null), events, mock(GroupRouting.class), Clock.fixed(NOW, ZoneOffset.UTC));
 
     final Ticket ticket = Ticket.open(
             "VPN", "down", TicketPriority.HIGH, TicketCategory.OTHER, "cust1", Duration.ofHours(8), NOW.minusSeconds(3600));

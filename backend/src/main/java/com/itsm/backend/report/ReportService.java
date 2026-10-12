@@ -54,6 +54,17 @@ public class ReportService {
         return queries.team(now.minus(Duration.ofDays(days)), now);
     }
 
+    @Transactional(readOnly = true)
+    public List<GroupWorkloadResponse> groups(CurrentUser user) {
+        return groups(user, clock.instant());
+    }
+
+    @Transactional(readOnly = true)
+    public List<GroupWorkloadResponse> groups(CurrentUser user, Instant now) {
+        requireManager(user);
+        return queries.groups(now);
+    }
+
     private static void requireManager(CurrentUser user) {
         if (user.role() != Role.MANAGER) {
             throw new ForbiddenException("MANAGER_ONLY", "Only managers can see reports.");
