@@ -26,10 +26,18 @@ export function uniqueTitle(prefix: string): string {
 }
 
 /** Creates a ticket through the form and returns its id; leaves the page on the ticket. */
-export async function createTicket(page: Page, title: string, description = 'Uçtan uca test talebi.'): Promise<number> {
+export async function createTicket(
+  page: Page,
+  title: string,
+  description = 'Uçtan uca test talebi.',
+  category?: string,
+): Promise<number> {
   await page.goto('/tickets/new');
   await page.getByLabel('Başlık').fill(title);
   await page.getByLabel('Açıklama').fill(description);
+  if (category) {
+    await page.getByLabel('Kategori').selectOption({ label: category });
+  }
   await page.getByRole('button', { name: 'Talep aç' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toContainText(title);
   const id = Number(new URL(page.url()).pathname.split('/').pop());
