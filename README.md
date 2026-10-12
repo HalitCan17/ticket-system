@@ -5,7 +5,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 14** — destek grupları, kategoriye göre yönlendirme ve grup içi otomatik atama; yönetici paneli, hazır yanıtlar, personel iş kuyruğu, üstlenme/devretme/atama, öncelik ve kategori değiştirme; müşteri özellikleri (kategori, arama, geri çekme, memnuniyet puanı), GitHub Actions CI, log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
+> Durum: **Aşama 15** — SLA genişletmeleri (ilk yanıt süresi, %80 uyarı, eskalasyon, mesai takvimi); destek grupları, kategoriye göre yönlendirme ve grup içi otomatik atama; yönetici paneli, hazır yanıtlar, personel iş kuyruğu, üstlenme/devretme/atama, öncelik ve kategori değiştirme; müşteri özellikleri (kategori, arama, geri çekme, memnuniyet puanı), GitHub Actions CI, log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -141,7 +141,8 @@ Uygulama içi bildirimlerdir (e-posta yok), arayüz 30 saniyede bir kontrol eder
 | Talep atandı / atamadan çıkarıldı | yeni atanan / önceki atanan |
 | Öncelik değişti | atanan |
 | Otomatik kapanış | talep eden |
-| SLA ihlali (ticket başına bir kez) | atanan ve tüm yöneticiler* |
+| SLA ihlali (ticket başına bir kez) | atanan ve tüm yöneticiler*, grup üyeleri |
+| SLA uyarısı (%80) / ilk yanıt ihlali | atanan (yoksa grup üyeleri, yöneticiler) |
 
 \* Yöneticiler, uygulamaya en az bir kez giriş yapmış olanlardır. Ayrıntılar: [ADR 0007](docs/adr/0007-in-app-notifications.md).
 
@@ -169,7 +170,8 @@ NEW ──► IN_PROGRESS ◄──► WAITING_FOR_CUSTOMER
 Müşteri yalnızca kendi ticket'larını görür (başkasınınki için 404). `INTERNAL` yorumlar yalnızca AGENT/MANAGER'a görünür.
 
 ## SLA ve otomatik kapanış
-Çözüm süresi SLA'sı takvim süresiyle (7/24) sayılır; hedef ticket açılırken öncelikten alınır:
+Çözüm süresi SLA'sı varsayılan olarak takvim süresiyle (7/24) sayılır; yönetici **SLA ayarları** sayfasından mesai saatlerini
+(çalışma günleri, saatler, resmî tatiller) açabilir: o zaman süreler yalnızca mesaide ilerler. Hedef ticket açılırken öncelikten alınır:
 
 | Öncelik | Hedef |
 |---|---|
@@ -188,6 +190,10 @@ Her ticket cevabında `sla` alanı döner:
 
 `RESOLVED` ticket müşteri yanıt vermezse **7 gün** sonra sistem tarafından kapatılır (geçmişte `changedBy: "system"`);
 cevaptaki `autoCloseAt` bu anı gösterir. Ayarlar: [ADR 0005](docs/adr/0005-sla-and-auto-close.md).
+
+Ayrıca **ilk yanıt SLA'sı** (ilk dış personel yorumu ya da çözüm; `itsm.sla.first-response.<PRIORITY>`), çözüm hedefinin
+**%80'inde uyarı** ve ihlalde **eskalasyon** (rozet, grup üyelerine bildirim; `itsm.sla.escalation.raise-priority` açıksa
+öncelik bir kademe yükselir) vardır. Ayrıntılar: [ADR 0015](docs/adr/0015-sla-extensions.md).
 
 | Ayar | Varsayılan | Compose env |
 |---|---|---|
@@ -226,6 +232,8 @@ curl -s -d client_id=itsm-cli -d grant_type=password -d username=customer1 -d pa
 |---|---|---|
 | POST | `/api/tickets` | ticket aç: `{title, description, priority: LOW\|MEDIUM\|HIGH\|CRITICAL, category: HARDWARE\|SOFTWARE\|NETWORK\|ACCESS\|OTHER}` |
 | GET | `/api/tickets?q=&scope=OPEN\|CLOSED\|ALL&category=&status=&page=0&size=20` | sayfalı liste (`q`: başlıkta ya da `#id`; personel için `assignee=me\|unassigned\|<id>`, `group=mine\|<id>`, `sort=SLA`; `size` ≤ 100) |
+| GET | `/api/sla/calendar` | mesai takvimi ve SLA hedefleri (personel) |
+| PUT | `/api/sla/calendar` | yönetici: `{enabled, zoneId, workDays, start, end, holidays}`; açık talepler yeniden hesaplanır |
 | GET | `/api/tickets/{id}` | detay (+ çağıranın yapabileceği `allowedTransitions`) |
 | POST | `/api/tickets/{id}/transitions` | `{targetStatus, note}` |
 | PUT | `/api/tickets/{id}/assignee` | personel: `{assigneeId}` (null = atamayı kaldır); agent yalnız üstlenir/kendi talebini devreder |
@@ -277,4 +285,5 @@ curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Co
 - [ADR 0012 — Hazır yanıtlar](docs/adr/0012-canned-responses.md)
 - [ADR 0013 — Yönetici paneli](docs/adr/0013-manager-dashboard.md)
 - [ADR 0014 — Destek grupları](docs/adr/0014-support-groups.md)
+- [ADR 0015 — SLA genişletmeleri](docs/adr/0015-sla-extensions.md)
 - [jBPM spike raporu](docs/jbpm-spike.md)
