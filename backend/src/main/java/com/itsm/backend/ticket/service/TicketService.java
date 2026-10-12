@@ -56,6 +56,7 @@ public class TicketService {
                 request.priority(), request.category(), user.id(), sla.targetFor(request.priority()), now));
         history.save(new TicketStatusHistory(ticket.getId(), null, TicketStatus.NEW, user.id(), null, now));
         log.info("Ticket {} created by {} with priority {}", ticket.getId(), user.id(), ticket.getPriority());
+        ticket.startFirstResponseClock(sla.firstResponseFor(ticket.getPriority()));
         routing.routeNewTicket(ticket, now);
         return ticket;
     }
@@ -78,6 +79,9 @@ public class TicketService {
         String note = normalize(request.note());
 
         TicketStatus previous = ticket.transitionTo(request.targetStatus(), user, note, now);
+        if (ticket.getStatus() == TicketStatus.RESOLVED && user.isStaff()) {
+            ticket.recordFirstResponse(now); // the resolution note is visible to the customer
+        }
         history.save(new TicketStatusHistory(ticket.getId(), previous, ticket.getStatus(), user.id(), note, now));
         events.publishEvent(new TicketStatusChangedEvent(ticket, previous, ticket.getStatus(), user.id()));
         log.info("Ticket {} moved {} -> {} by {}", ticket.getId(), previous, ticket.getStatus(), user.id());

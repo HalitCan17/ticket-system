@@ -57,6 +57,30 @@ public class ReportQueries {
                 (rs, i) -> new long[] {rs.getLong("open"), rs.getLong("unassigned"), rs.getLong("breached")});
     }
 
+    /** First responses given in the period and how many were within their target. */
+    public SummaryResponse.FirstResponseSummary firstResponsesBetween(Instant from, Instant now) {
+        return jdbc.queryForObject("""
+                select count(*) as responded,
+                       count(*) filter (where first_responded_at <= first_response_due_at) as within_target
+                from tickets
+                where first_responded_at >= :from and first_responded_at <= :now""",
+                params(from, now),
+                (rs, i) -> {
+                    long responded = rs.getLong("responded");
+                    long within = rs.getLong("within_target");
+                    return new SummaryResponse.FirstResponseSummary(responded, within,
+                            responded == 0 ? null : (double) within / responded);
+                });
+    }
+
+    /** Open tickets that were escalated. */
+    public long escalatedOpen() {
+        Long n = jdbc.queryForObject(
+                "select count(*) from tickets where escalated_at is not null and " + OPEN,
+                new MapSqlParameterSource(), Long.class);
+        return n == null ? 0 : n;
+    }
+
     public long createdBetween(Instant from, Instant now) {
         Long n = jdbc.queryForObject("select count(*) from tickets where created_at >= :from and created_at <= :now",
                 params(from, now), Long.class);

@@ -75,6 +75,26 @@ public record SlaClock(Duration target, Duration elapsedBeforeRun, Instant runni
         return isRunning() ? runningSince.plus(target.minus(elapsedBeforeRun)) : null;
     }
 
+    /** Share of the target after which the assignee is warned (docs/adr/0015-sla-extensions.md). */
+    public static final double WARNING_SHARE = 0.8;
+
+    /**
+     * Moment {@link #WARNING_SHARE} of the target is used if the clock keeps running (already past: the start of the
+     * current run); null while not running.
+     */
+    public Instant scheduledWarnAt() {
+        if (!isRunning()) {
+            return null;
+        }
+        Duration warnAfter = Duration.ofMillis(Math.round(target.toMillis() * WARNING_SHARE)).minus(elapsedBeforeRun);
+        return warnAfter.isNegative() ? runningSince : runningSince.plus(warnAfter);
+    }
+
+    /** Whether {@link #WARNING_SHARE} of the target is used at {@code now}. */
+    public boolean isWarningDue(Instant now) {
+        return elapsed(now).toMillis() >= Math.round(target.toMillis() * WARNING_SHARE);
+    }
+
     /** Breached once more time was used than allowed; hitting the target exactly is still within SLA. */
     public boolean isBreached(Instant now) {
         return elapsed(now).compareTo(target) > 0;

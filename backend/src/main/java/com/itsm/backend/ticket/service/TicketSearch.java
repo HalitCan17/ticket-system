@@ -15,12 +15,13 @@ import com.itsm.backend.ticket.domain.TicketStatus;
  * @param unassigned only tickets nobody is assigned to (staff work queue)
  * @param sortBySla  most urgent first (see {@code TicketSpecifications}); otherwise newest first
  * @param groupIds   only tickets of these support groups (staff); null = any group
+ * @param escalated  only tickets escalated because of a breached resolution SLA (staff)
  */
 public record TicketSearch(String text, TicketScope scope, TicketStatus status, TicketCategory category,
-        String assigneeId, boolean unassigned, boolean sortBySla, List<Long> groupIds) {
+        String assigneeId, boolean unassigned, boolean sortBySla, List<Long> groupIds, boolean escalated) {
 
     public TicketSearch(String text, TicketScope scope, TicketStatus status, TicketCategory category) {
-        this(text, scope, status, category, null, false, false, null);
+        this(text, scope, status, category, null, false, false, null, false);
     }
 
     public static TicketSearch all() {

@@ -2,6 +2,7 @@ package com.itsm.backend.ticket.domain;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.function.Function;
 
 import com.itsm.backend.common.error.BadRequestException;
 import com.itsm.backend.common.error.ConflictException;
@@ -83,6 +84,27 @@ public class Ticket {
     /** Derived from the SLA clock (see {@link SlaClock#scheduledDueAt}); only for ordering the work queue. */
     @Column(name = "sla_due_at")
     private Instant slaDueAt;
+
+    /** Derived from the SLA clock (see {@link SlaClock#scheduledWarnAt}); used to find tickets to warn about. */
+    @Column(name = "sla_warn_at")
+    private Instant slaWarnAt;
+
+    @Column(name = "sla_warning_notified_at")
+    private Instant slaWarningNotifiedAt;
+
+    /** First response SLA (docs/adr/0015-sla-extensions.md). */
+    @Column(name = "first_response_due_at")
+    private Instant firstResponseDueAt;
+
+    @Column(name = "first_responded_at")
+    private Instant firstRespondedAt;
+
+    @Column(name = "first_response_breach_notified_at")
+    private Instant firstResponseBreachNotifiedAt;
+
+    /** Set when the resolution SLA was breached and the ticket escalated. */
+    @Column(name = "escalated_at")
+    private Instant escalatedAt;
 
     /** Requester's satisfaction score 1–5; null until rated. */
     @Column
@@ -230,8 +252,8 @@ public class Ticket {
      * @throws ConflictException   when closed ({@code TICKET_CLOSED}) or resolved ({@code PRIORITY_LOCKED}: SLA stopped)
      * @throws BadRequestException without a reason ({@code PRIORITY_REASON_REQUIRED})
      */
-    public TicketPriority changePriority(TicketPriority newPriority, Duration newSlaTarget, String reason,
-            CurrentUser actor, Instant now) {
+    public TicketPriority changePriority(TicketPriority newPriority, Duration newSlaTarget,
+            Duration newFirstResponseTarget, String reason, CurrentUser actor, Instant now) {
         checkEditable(actor);
         if (status == TicketStatus.RESOLVED) {
             throw new ConflictException("PRIORITY_LOCKED", "The priority of a resolved ticket cannot change.");
@@ -240,14 +262,32 @@ public class Ticket {
             throw new BadRequestException("PRIORITY_REASON_REQUIRED", "A reason is required to change the priority.");
         }
         TicketPriority previous = priority;
+        applyPriority(newPriority, newSlaTarget, newFirstResponseTarget, now);
+        return previous;
+    }
+
+    /**
+     * Sets the priority and measures both SLA clocks against its targets; the time used so far is kept. Warnings and
+     * breaches that no longer hold are reset, so they are notified again if they recur.
+     */
+    private void applyPriority(TicketPriority newPriority, Duration newSlaTarget, Duration newFirstResponseTarget,
+            Instant now) {
         priority = newPriority;
         SlaClock clock = getSlaClock().withTarget(newSlaTarget);
         setSlaClock(clock);
         if (!clock.isBreached(now)) {
             slaBreachNotifiedAt = null;
         }
+        if (!clock.isWarningDue(now)) {
+            slaWarningNotifiedAt = null;
+        }
+        if (firstRespondedAt == null && firstResponseDueAt != null) {
+            firstResponseDueAt = createdAt.plus(newFirstResponseTarget);
+            if (!isFirstResponseBreached(now)) {
+                firstResponseBreachNotifiedAt = null;
+            }
+        }
         updatedAt = now;
-        return previous;
     }
 
     /**
@@ -307,9 +347,97 @@ public class Ticket {
         return (status == TicketStatus.RESOLVED || status == TicketStatus.CLOSED) && resolutionNote != null;
     }
 
+    /** Starts the first response clock; called when the ticket is opened. */
+    public void startFirstResponseClock(Duration target) {
+        firstResponseDueAt = createdAt.plus(target);
+    }
+
+    /**
+     * Records the first customer-visible reaction of staff (an external comment or the resolution).
+     *
+     * @return whether this was the first response
+     */
+    public boolean recordFirstResponse(Instant now) {
+        if (firstRespondedAt != null) {
+            return false;
+        }
+        firstRespondedAt = now;
+        return true;
+    }
+
+    /**
+     * Late first response: answered after the due time, or still unanswered past it while open. A ticket closed
+     * without any response (e.g. withdrawn) does not count as breached.
+     */
+    public boolean isFirstResponseBreached(Instant now) {
+        if (firstResponseDueAt == null) {
+            return false;
+        }
+        if (firstRespondedAt != null) {
+            return firstRespondedAt.isAfter(firstResponseDueAt);
+        }
+        return !isClosed() && now.isAfter(firstResponseDueAt);
+    }
+
+    /** Still waiting for a first response (open and unanswered). */
+    public boolean isAwaitingFirstResponse() {
+        return firstResponseDueAt != null && firstRespondedAt == null && !isClosed();
+    }
+
+    public void markFirstResponseBreachNotified(Instant now) {
+        firstResponseBreachNotifiedAt = now;
+    }
+
+    public void markSlaWarningNotified(Instant now) {
+        slaWarningNotifiedAt = now;
+    }
+
+    /**
+     * The resolution SLA was breached: marks the ticket escalated and, if asked, raises its priority one level
+     * (CRITICAL stays) with the targets of the new priority.
+     *
+     * @return the previous priority if it was raised, otherwise null
+     */
+    public TicketPriority escalate(boolean raisePriority, Function<TicketPriority, Duration> slaTargets,
+            Function<TicketPriority, Duration> firstResponseTargets, Instant now) {
+        escalatedAt = now;
+        updatedAt = now;
+        TicketPriority higher = priority.higher();
+        if (!raisePriority || higher == priority) {
+            return null;
+        }
+        TicketPriority previous = priority;
+        applyPriority(higher, slaTargets.apply(higher), firstResponseTargets.apply(higher), now);
+        return previous;
+    }
+
     /** An SLA breach is notified once per ticket, also if an objection later resumes the clock. */
     public void markSlaBreachNotified(Instant now) {
         slaBreachNotifiedAt = now;
+    }
+
+    public Instant getSlaWarnAt() {
+        return slaWarnAt;
+    }
+
+    public Instant getSlaWarningNotifiedAt() {
+        return slaWarningNotifiedAt;
+    }
+
+    public Instant getFirstResponseDueAt() {
+        return firstResponseDueAt;
+    }
+
+    public Instant getFirstRespondedAt() {
+        return firstRespondedAt;
+    }
+
+    public Instant getFirstResponseBreachNotifiedAt() {
+        return firstResponseBreachNotifiedAt;
+    }
+
+    public Instant getEscalatedAt() {
+        return escalatedAt;
     }
 
     public Instant getSlaDueAt() {
@@ -343,6 +471,7 @@ public class Ticket {
         slaElapsedSeconds = clock.elapsedBeforeRun().toSeconds();
         slaRunningSince = clock.runningSince();
         slaDueAt = clock.scheduledDueAt();
+        slaWarnAt = clock.scheduledWarnAt();
     }
 
     public boolean isClosed() {

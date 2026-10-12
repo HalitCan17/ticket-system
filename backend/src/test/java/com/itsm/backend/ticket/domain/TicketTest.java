@@ -180,7 +180,7 @@ class TicketTest {
         Ticket ticket = newTicket(); // HIGH, 8 h
         Instant now = T0.plus(Duration.ofHours(5));
 
-        TicketPriority previous = ticket.changePriority(TicketPriority.CRITICAL, Duration.ofHours(4), "Üretim durdu",
+        TicketPriority previous = ticket.changePriority(TicketPriority.CRITICAL, Duration.ofHours(4), Duration.ofHours(1), "Üretim durdu",
                 AGENT, now);
 
         assertThat(previous).isEqualTo(TicketPriority.HIGH);
@@ -196,7 +196,7 @@ class TicketTest {
         Instant now = T0.plus(Duration.ofHours(9));
         ticket.markSlaBreachNotified(now);
 
-        ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), "Bekleyebilir", AGENT, now);
+        ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), Duration.ofHours(1), "Bekleyebilir", AGENT, now);
 
         assertThat(ticket.getSlaClock().isBreached(now)).isFalse();
         assertThat(ticket.getSlaBreachNotifiedAt()).isNull();
@@ -205,14 +205,14 @@ class TicketTest {
     @Test
     void priorityChangeNeedsStaffAReasonAndAnUnresolvedTicket() {
         Ticket ticket = newTicket();
-        assertThatThrownBy(() -> ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), "x", CUSTOMER, T0))
+        assertThatThrownBy(() -> ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), Duration.ofHours(1), "x", CUSTOMER, T0))
                 .isInstanceOf(ForbiddenException.class);
-        assertThatThrownBy(() -> ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), " ", AGENT, T0))
+        assertThatThrownBy(() -> ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), Duration.ofHours(1), " ", AGENT, T0))
                 .isInstanceOf(BadRequestException.class)
                 .extracting(e -> ((ApiException) e).getCode()).isEqualTo("PRIORITY_REASON_REQUIRED");
 
         Ticket resolved = resolvedTicket();
-        assertThatThrownBy(() -> resolved.changePriority(TicketPriority.LOW, Duration.ofHours(72), "x", AGENT, T0))
+        assertThatThrownBy(() -> resolved.changePriority(TicketPriority.LOW, Duration.ofHours(72), Duration.ofHours(1), "x", AGENT, T0))
                 .isInstanceOf(ConflictException.class)
                 .extracting(e -> ((ApiException) e).getCode()).isEqualTo("PRIORITY_LOCKED");
         // The category may still change on a resolved ticket.
@@ -241,6 +241,79 @@ class TicketTest {
         assertThat(ticket.assignTo("agent2", true, AGENT, T0.plusSeconds(1))).isEqualTo("agent1");
         assertThat(ticket.getAssigneeId()).isEqualTo("agent2");
         assertThat(ticket.getUpdatedAt()).isEqualTo(T0.plusSeconds(1));
+    }
+
+    @Test
+    void firstResponseIsRecordedOnceAndLateIsBreached() {
+        Ticket ticket = newTicket();
+        ticket.startFirstResponseClock(Duration.ofHours(1));
+        assertThat(ticket.getFirstResponseDueAt()).isEqualTo(T0.plus(Duration.ofHours(1)));
+        assertThat(ticket.isAwaitingFirstResponse()).isTrue();
+        assertThat(ticket.isFirstResponseBreached(T0.plus(Duration.ofMinutes(59)))).isFalse();
+        assertThat(ticket.isFirstResponseBreached(T0.plus(Duration.ofMinutes(61)))).isTrue();
+
+        assertThat(ticket.recordFirstResponse(T0.plus(Duration.ofMinutes(70)))).isTrue();
+        assertThat(ticket.recordFirstResponse(T0.plus(Duration.ofMinutes(80)))).isFalse(); // only the first counts
+        assertThat(ticket.getFirstRespondedAt()).isEqualTo(T0.plus(Duration.ofMinutes(70)));
+        assertThat(ticket.isAwaitingFirstResponse()).isFalse();
+        assertThat(ticket.isFirstResponseBreached(T0.plus(Duration.ofDays(1)))).isTrue(); // answered late
+    }
+
+    @Test
+    void aTicketClosedWithoutAnyResponseIsNotALateFirstResponse() {
+        Ticket ticket = newTicket();
+        ticket.startFirstResponseClock(Duration.ofHours(1));
+        ticket.transitionTo(TicketStatus.CLOSED, CUSTOMER, null, T0.plus(Duration.ofHours(2))); // withdrawn
+
+        assertThat(ticket.isAwaitingFirstResponse()).isFalse();
+        assertThat(ticket.isFirstResponseBreached(T0.plus(Duration.ofHours(3)))).isFalse();
+    }
+
+    @Test
+    void priorityChangeMovesAnUnansweredFirstResponseDeadline() {
+        Ticket ticket = newTicket(); // HIGH
+        ticket.startFirstResponseClock(Duration.ofHours(1));
+        ticket.markFirstResponseBreachNotified(T0.plus(Duration.ofHours(2)));
+
+        ticket.changePriority(TicketPriority.LOW, Duration.ofHours(72), Duration.ofHours(8), "Bekleyebilir", AGENT,
+                T0.plus(Duration.ofHours(2)));
+
+        assertThat(ticket.getFirstResponseDueAt()).isEqualTo(T0.plus(Duration.ofHours(8)));
+        assertThat(ticket.getFirstResponseBreachNotifiedAt()).isNull(); // no longer late: notify again if it gets late
+    }
+
+    @Test
+    void warningMomentIsEightyPercentOfTheTargetAndFollowsPauses() {
+        Ticket ticket = newTicket(); // 8 h target, running since T0
+        assertThat(ticket.getSlaWarnAt()).isEqualTo(T0.plus(Duration.ofMinutes(384))); // 6 h 24 min
+
+        ticket.transitionTo(TicketStatus.IN_PROGRESS, AGENT, null, T0.plus(Duration.ofHours(1)));
+        ticket.transitionTo(TicketStatus.WAITING_FOR_CUSTOMER, AGENT, null, T0.plus(Duration.ofHours(2)));
+        assertThat(ticket.getSlaWarnAt()).isNull(); // paused
+        ticket.transitionTo(TicketStatus.IN_PROGRESS, AGENT, null, T0.plus(Duration.ofHours(5)));
+        // 2 h used: warn 4 h 24 min after the resume
+        assertThat(ticket.getSlaWarnAt()).isEqualTo(T0.plus(Duration.ofHours(5)).plus(Duration.ofMinutes(264)));
+    }
+
+    @Test
+    void escalationMarksTheTicketAndRaisesThePriorityOnlyWhenAsked() {
+        Ticket kept = newTicket(); // HIGH
+        assertThat(kept.escalate(false, p -> Duration.ofHours(4), p -> Duration.ofMinutes(30), T0)).isNull();
+        assertThat(kept.getEscalatedAt()).isEqualTo(T0);
+        assertThat(kept.getPriority()).isEqualTo(TicketPriority.HIGH);
+
+        Ticket raised = newTicket();
+        raised.startFirstResponseClock(Duration.ofHours(1));
+        assertThat(raised.escalate(true, p -> Duration.ofHours(4), p -> Duration.ofMinutes(30), T0))
+                .isEqualTo(TicketPriority.HIGH);
+        assertThat(raised.getPriority()).isEqualTo(TicketPriority.CRITICAL);
+        assertThat(raised.getSlaClock().target()).isEqualTo(Duration.ofHours(4));
+        assertThat(raised.getFirstResponseDueAt()).isEqualTo(T0.plus(Duration.ofMinutes(30)));
+
+        // CRITICAL has nowhere to go.
+        assertThat(raised.escalate(true, p -> Duration.ofHours(4), p -> Duration.ofMinutes(30), T0)).isNull();
+        assertThat(TicketPriority.LOW.higher()).isEqualTo(TicketPriority.MEDIUM);
+        assertThat(TicketPriority.CRITICAL.higher()).isEqualTo(TicketPriority.CRITICAL);
     }
 
     private static Ticket resolvedTicket() {

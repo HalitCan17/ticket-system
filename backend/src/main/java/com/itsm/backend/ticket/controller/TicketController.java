@@ -88,6 +88,7 @@ public class TicketController {
             @RequestParam(required = false) @Size(max = 64) String assignee,
             @RequestParam(required = false) TicketSort sort,
             @RequestParam(required = false) @Size(max = 20) String group,
+            @RequestParam(defaultValue = "false") boolean escalated,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         // assignee: "me", "unassigned" or a user id (staff work queue)
@@ -96,7 +97,7 @@ public class TicketController {
                 : "me".equalsIgnoreCase(assignee) ? user.id() : assignee;
         boolean bySla = sort == TicketSort.SLA;
         TicketSearch search = new TicketSearch(q, scope, status, category, assigneeId, unassigned, bySla,
-                groupFilter(user, group));
+                groupFilter(user, group), escalated);
         PageRequest pageable = bySla ? PageRequest.of(page, size) : PageRequest.of(page, size, NEWEST_FIRST);
         return responses.toPage(ticketService.list(user, search, pageable), user);
     }

@@ -90,7 +90,7 @@ public class TicketManagementService {
 
         if (request.priority() != null && request.priority() != ticket.getPriority()) {
             TicketPriority previous = ticket.changePriority(request.priority(), sla.targetFor(request.priority()),
-                    reason, user, now);
+                    sla.firstResponseFor(request.priority()), reason, user, now);
             activities.save(new TicketActivity(ticket.getId(), TicketActivityType.PRIORITY_CHANGED, previous.name(),
                     request.priority().name(), reason, user.id(), now));
             events.publishEvent(new TicketPriorityChangedEvent(ticket, previous, user.id()));

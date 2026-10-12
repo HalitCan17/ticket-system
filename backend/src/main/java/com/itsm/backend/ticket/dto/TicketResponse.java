@@ -13,6 +13,8 @@ import com.itsm.backend.ticket.domain.TicketStatus;
  * @param requesterName      display name from the user directory; null if unknown
  * @param allowedTransitions statuses the caller may move this ticket to; lets clients show only valid actions
  * @param sla                resolution-time SLA as of the response time
+ * @param firstResponse      first response SLA as of the response time
+ * @param escalatedAt        when the breached resolution SLA escalated the ticket; null if never
  * @param autoCloseAt        when a RESOLVED ticket will be closed automatically; null in other statuses
  * @param rating             the requester's satisfaction rating; null until rated
  * @param canRate            whether the caller may rate the ticket now
@@ -40,6 +42,8 @@ public record TicketResponse(
         Instant closedAt,
         Set<TicketStatus> allowedTransitions,
         SlaResponse sla,
+        FirstResponseResponse firstResponse,
+        Instant escalatedAt,
         Instant autoCloseAt,
         RatingResponse rating,
         boolean canRate,

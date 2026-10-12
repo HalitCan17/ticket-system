@@ -20,5 +20,9 @@ public enum NotificationType {
     /** The ticket was taken away from the recipient (reassigned or unassigned). */
     TICKET_UNASSIGNED,
     /** Staff changed the priority of the recipient's ticket. */
-    PRIORITY_CHANGED
+    PRIORITY_CHANGED,
+    /** 80 % of the resolution SLA is used. */
+    SLA_WARNING,
+    /** Nobody from staff answered the customer within the first response target. */
+    FIRST_RESPONSE_BREACHED
 }

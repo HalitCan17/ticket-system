@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Periodically triggers {@link SlaBreachService} ({@code itsm.sla.breach-check-interval}, default 60s). */
+/** Periodically runs {@link SlaBreachService#run} ({@code itsm.sla.breach-check-interval}, default 60s). */
 @Component
 @ConditionalOnProperty(prefix = "itsm.sla", name = "breach-check-enabled", havingValue = "true", matchIfMissing = true)
 public class SlaBreachScheduler {
@@ -26,9 +26,10 @@ public class SlaBreachScheduler {
     @Scheduled(fixedDelayString = "${itsm.sla.breach-check-interval:60s}",
             initialDelayString = "${itsm.sla.breach-check-interval:60s}")
     public void run() {
-        int notified = breachService.notifyBreaches(clock.instant());
-        if (notified > 0) {
-            log.info("Notified SLA breach of {} ticket(s)", notified);
+        SlaBreachService.Result result = breachService.run(clock.instant());
+        if (result.any()) {
+            log.info("SLA check: {} warned, {} late first response(s), {} escalated", result.warned(),
+                    result.firstResponseBreaches(), result.escalated());
         }
     }
 }

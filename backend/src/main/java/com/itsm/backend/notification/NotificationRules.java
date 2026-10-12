@@ -83,14 +83,40 @@ public final class NotificationRules {
         return recipients(NotificationType.PRIORITY_CHANGED, actorId, ticket.getAssigneeId());
     }
 
-    /** SLA breaches go to the assignee (if any) and every manager. */
-    public static List<Recipient> forSlaBreach(Ticket ticket, Collection<String> managerIds) {
+    /**
+     * A breached resolution SLA is escalated: the assignee, the members of the ticket's group and every manager are
+     * told (docs/adr/0015-sla-extensions.md).
+     */
+    public static List<Recipient> forSlaBreach(Ticket ticket, Collection<String> groupMemberIds,
+            Collection<String> managerIds) {
         Set<String> users = new LinkedHashSet<>();
         if (ticket.getAssigneeId() != null) {
             users.add(ticket.getAssigneeId());
         }
+        users.addAll(groupMemberIds);
         users.addAll(managerIds);
         return users.stream().map(id -> new Recipient(id, NotificationType.SLA_BREACHED)).toList();
+    }
+
+    /** 80 % of the resolution SLA used: whoever owns the ticket (see {@link #owners}). */
+    public static List<Recipient> forSlaWarning(Ticket ticket, Collection<String> groupMemberIds,
+            Collection<String> managerIds) {
+        return owners(NotificationType.SLA_WARNING, ticket, groupMemberIds, managerIds);
+    }
+
+    /** No first response in time: whoever owns the ticket (see {@link #owners}). */
+    public static List<Recipient> forFirstResponseBreach(Ticket ticket, Collection<String> groupMemberIds,
+            Collection<String> managerIds) {
+        return owners(NotificationType.FIRST_RESPONSE_BREACHED, ticket, groupMemberIds, managerIds);
+    }
+
+    /** The assignee; without one the members of the ticket's group; without those every manager. */
+    private static List<Recipient> owners(NotificationType type, Ticket ticket, Collection<String> groupMemberIds,
+            Collection<String> managerIds) {
+        Collection<String> users = ticket.getAssigneeId() != null ? List.of(ticket.getAssigneeId())
+                : !groupMemberIds.isEmpty() ? groupMemberIds
+                : managerIds;
+        return users.stream().distinct().map(id -> new Recipient(id, type)).toList();
     }
 
     private static List<Recipient> recipients(NotificationType type, String actorId, String... candidates) {

@@ -8,6 +8,7 @@ import com.itsm.backend.attachment.TicketAttachment;
 import com.itsm.backend.attachment.TicketAttachmentAddedEvent;
 import com.itsm.backend.common.error.NotFoundException;
 import com.itsm.backend.notification.NotificationRules.Recipient;
+import com.itsm.backend.group.GroupDirectory;
 import com.itsm.backend.security.CurrentUser;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
@@ -32,11 +33,14 @@ public class NotificationService {
 
     private final NotificationRepository notifications;
     private final UserDirectory userDirectory;
+    private final GroupDirectory groups;
     private final Clock clock;
 
-    public NotificationService(NotificationRepository notifications, UserDirectory userDirectory, Clock clock) {
+    public NotificationService(NotificationRepository notifications, UserDirectory userDirectory, GroupDirectory groups,
+            Clock clock) {
         this.notifications = notifications;
         this.userDirectory = userDirectory;
+        this.groups = groups;
         this.clock = clock;
     }
 
@@ -75,9 +79,24 @@ public class NotificationService {
         create(event.ticket(), NotificationRules.forPriorityChange(event.ticket(), event.actorId()), event.actorId(), null);
     }
 
-    /** Notifies the assignee and all known managers that the ticket exceeded its SLA. */
+    /** Escalation: the assignee, the ticket's group and all known managers hear that the SLA was exceeded. */
     public void notifySlaBreach(Ticket ticket) {
-        create(ticket, NotificationRules.forSlaBreach(ticket, userDirectory.managerIds()), null, null);
+        create(ticket, NotificationRules.forSlaBreach(ticket, groupMembers(ticket), userDirectory.managerIds()), null,
+                null);
+    }
+
+    public void notifySlaWarning(Ticket ticket) {
+        create(ticket, NotificationRules.forSlaWarning(ticket, groupMembers(ticket), userDirectory.managerIds()), null,
+                null);
+    }
+
+    public void notifyFirstResponseBreach(Ticket ticket) {
+        create(ticket, NotificationRules.forFirstResponseBreach(ticket, groupMembers(ticket),
+                userDirectory.managerIds()), null, null);
+    }
+
+    private List<String> groupMembers(Ticket ticket) {
+        return ticket.getGroupId() == null ? List.of() : groups.assignableMembers(ticket.getGroupId());
     }
 
     /** The caller's own notifications only. */

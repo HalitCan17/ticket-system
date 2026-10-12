@@ -14,6 +14,7 @@ import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketAssignment;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.domain.TicketWorkflow;
+import com.itsm.backend.ticket.dto.FirstResponseResponse;
 import com.itsm.backend.ticket.dto.RatingResponse;
 import com.itsm.backend.ticket.dto.SlaResponse;
 import com.itsm.backend.ticket.dto.TicketResponse;
@@ -76,6 +77,8 @@ public class TicketResponseAssembler {
                 ticket.getClosedAt(),
                 TicketWorkflow.allowedTargets(ticket.getStatus(), viewer, ticket.getRequesterId()),
                 SlaResponse.of(ticket.getSlaState(), ticket.getSlaClock(), now),
+                FirstResponseResponse.of(ticket, now),
+                ticket.getEscalatedAt(),
                 autoCloseAt,
                 RatingResponse.of(ticket),
                 ticket.canBeRatedBy(viewer),

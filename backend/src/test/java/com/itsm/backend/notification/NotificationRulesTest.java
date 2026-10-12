@@ -140,14 +140,30 @@ class NotificationRulesTest {
     }
 
     @Test
-    void slaBreachNotifiesAssigneeAndManagersOnce() {
-        assertThat(NotificationRules.forSlaBreach(assignedTo(AGENT), List.of(MANAGER, "manager2", AGENT)))
+    void slaBreachEscalatesToAssigneeGroupAndManagersOnce() {
+        assertThat(NotificationRules.forSlaBreach(assignedTo(AGENT), List.of("agent2", AGENT),
+                List.of(MANAGER, "manager2", AGENT)))
                 .containsExactly(
                         new Recipient(AGENT, SLA_BREACHED),
+                        new Recipient("agent2", SLA_BREACHED),
                         new Recipient(MANAGER, SLA_BREACHED),
                         new Recipient("manager2", SLA_BREACHED));
-        assertThat(NotificationRules.forSlaBreach(newTicket(), List.of(MANAGER)))
+        assertThat(NotificationRules.forSlaBreach(newTicket(), List.of(), List.of(MANAGER)))
                 .containsExactly(new Recipient(MANAGER, SLA_BREACHED));
+    }
+
+    @Test
+    void warningsAndLateFirstResponsesGoToWhoeverOwnsTheTicket() {
+        // The assignee if there is one ...
+        assertThat(NotificationRules.forSlaWarning(assignedTo(AGENT), List.of("agent2"), List.of(MANAGER)))
+                .containsExactly(new Recipient(AGENT, NotificationType.SLA_WARNING));
+        // ... otherwise the group's members ...
+        assertThat(NotificationRules.forFirstResponseBreach(newTicket(), List.of("agent2", "agent3"), List.of(MANAGER)))
+                .containsExactly(new Recipient("agent2", NotificationType.FIRST_RESPONSE_BREACHED),
+                        new Recipient("agent3", NotificationType.FIRST_RESPONSE_BREACHED));
+        // ... otherwise the managers.
+        assertThat(NotificationRules.forSlaWarning(newTicket(), List.of(), List.of(MANAGER)))
+                .containsExactly(new Recipient(MANAGER, NotificationType.SLA_WARNING));
     }
 
     private static Ticket newTicket() {

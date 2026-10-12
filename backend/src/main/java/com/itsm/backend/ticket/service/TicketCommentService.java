@@ -1,6 +1,7 @@
 package com.itsm.backend.ticket.service;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 
 import com.itsm.backend.common.error.ConflictException;
@@ -50,8 +51,12 @@ public class TicketCommentService {
         if (ticket.isClosed()) {
             throw new ConflictException("TICKET_CLOSED", "Comments cannot be added to a closed ticket.");
         }
+        Instant now = clock.instant();
         TicketComment comment = comments.save(new TicketComment(
-                ticket.getId(), user.id(), request.visibility(), request.body().strip(), clock.instant()));
+                ticket.getId(), user.id(), request.visibility(), request.body().strip(), now));
+        if (user.isStaff() && request.visibility() == CommentVisibility.EXTERNAL) {
+            ticket.recordFirstResponse(now);
+        }
         events.publishEvent(new TicketCommentAddedEvent(ticket, comment));
         return comment;
     }

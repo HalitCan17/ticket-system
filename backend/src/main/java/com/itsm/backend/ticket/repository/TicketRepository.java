@@ -36,6 +36,31 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
             order by t.id""")
     List<Ticket> findOpenInGroupAssignedTo(@Param("groupId") long groupId, @Param("assigneeId") String assigneeId);
 
+    /** Running tickets past 80 % of their resolution SLA but not yet breached, not warned yet; id order after afterId. */
+    @Query(value = """
+            select id from tickets
+            where sla_warning_notified_at is null
+              and sla_warn_at <= :now
+              and sla_due_at > :now
+              and id > :afterId
+            order by id
+            limit :limit""", nativeQuery = true)
+    List<Long> findSlaWarningCandidateIds(@Param("now") Instant now, @Param("afterId") long afterId,
+            @Param("limit") int limit);
+
+    /** Unanswered, not closed tickets past their first response due time, not notified yet; id order after afterId. */
+    @Query(value = """
+            select id from tickets
+            where first_response_breach_notified_at is null
+              and first_responded_at is null
+              and first_response_due_at < :now
+              and status <> 'CLOSED'
+              and id > :afterId
+            order by id
+            limit :limit""", nativeQuery = true)
+    List<Long> findFirstResponseBreachCandidateIds(@Param("now") Instant now, @Param("afterId") long afterId,
+            @Param("limit") int limit);
+
     /**
      * Ids of open (not RESOLVED/CLOSED) tickets whose SLA is exceeded at {@code now} and not yet notified,
      * in id order after {@code afterId}. The elapsed time is computed like

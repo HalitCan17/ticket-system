@@ -14,6 +14,8 @@ import java.util.Map;
  * @param breachedOpen   open and past the SLA target now
  * @param created        opened in the period
  * @param categories     opened in the period, per category
+ * @param firstResponse  first responses given in the period
+ * @param escalatedOpen  open tickets escalated because their resolution SLA was breached
  */
 public record SummaryResponse(
         int days,
@@ -26,13 +28,22 @@ public record SummaryResponse(
         long created,
         ResolutionSummary resolution,
         RatingSummary satisfaction,
-        Map<String, Long> categories) {
+        Map<String, Long> categories,
+        FirstResponseSummary firstResponse,
+        long escalatedOpen) {
 
     /**
      * @param withinSlaRate     share of resolved tickets that met the SLA (0–1); null if none were resolved
      * @param avgResolveSeconds average time the SLA clock counted (customer waiting excluded); null if none
      */
     public record ResolutionSummary(long resolved, long withinSla, Double withinSlaRate, Long avgResolveSeconds) {
+    }
+
+    /**
+     * Tickets of the period that got their first response: how many in time. {@code withinTargetRate} is null when
+     * none were answered.
+     */
+    public record FirstResponseSummary(long responded, long withinTarget, Double withinTargetRate) {
     }
 
     /**

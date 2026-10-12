@@ -40,7 +40,9 @@ public class ReportService {
                 queries.createdBetween(from, now),
                 queries.resolvedBetween(from, now),
                 queries.ratingsBetween(from, now),
-                queries.categoriesBetween(from, now));
+                queries.categoriesBetween(from, now),
+                queries.firstResponsesBetween(from, now),
+                queries.escalatedOpen());
     }
 
     @Transactional(readOnly = true)
