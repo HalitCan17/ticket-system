@@ -8,6 +8,7 @@ import type { CannedResponsesApi } from '../api/cannedResponses.ts';
 import type { GroupsApi } from '../api/groups.ts';
 import type { NotificationsApi } from '../api/notifications.ts';
 import type { ReportsApi } from '../api/reports.ts';
+import type { KbApi } from '../api/kb.ts';
 import type { SlaCalendarApi } from '../api/slaCalendar.ts';
 import type { TicketsApi } from '../api/tickets.ts';
 import type { Role } from '../api/types.ts';
@@ -87,6 +88,19 @@ export function fakeSlaCalendarApi(overrides: Partial<SlaCalendarApi> = {}): Sla
   return { get: vi.fn(), save: vi.fn(), ...overrides };
 }
 
+/** A KbApi that finds nothing; override what a test needs. */
+export function fakeKbApi(overrides: Partial<KbApi> = {}): KbApi {
+  return {
+    search: vi.fn().mockResolvedValue({ items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }),
+    get: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+    vote: vi.fn(),
+    ...overrides,
+  };
+}
+
 /** Renders the real route tree with a fake signed-in user and API. */
 export function renderApp(
   path: string,
@@ -98,6 +112,7 @@ export function renderApp(
     reports?: ReportsApi;
     groups?: GroupsApi;
     slaCalendar?: SlaCalendarApi;
+    kb?: KbApi;
   } = {},
 ) {
   const auth: Auth = {
@@ -111,18 +126,19 @@ export function renderApp(
   const reports = options.reports ?? fakeReportsApi();
   const groups = options.groups ?? fakeGroupsApi();
   const slaCalendar = options.slaCalendar ?? fakeSlaCalendarApi();
+  const kb = options.kb ?? fakeKbApi();
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const queryClient = createQueryClient();
   queryClient.setDefaultOptions({ queries: { retry: false } });
 
   const result = render(
     <AuthContext.Provider value={auth}>
-      <ApiContext.Provider value={{ tickets: api, notifications, cannedResponses, reports, groups, slaCalendar }}>
+      <ApiContext.Provider value={{ tickets: api, notifications, cannedResponses, reports, groups, slaCalendar, kb }}>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>
       </ApiContext.Provider>
     </AuthContext.Provider>,
   );
-  return { ...result, auth, api, notifications, cannedResponses, reports, groups, slaCalendar, router };
+  return { ...result, auth, api, notifications, cannedResponses, reports, groups, slaCalendar, kb, router };
 }

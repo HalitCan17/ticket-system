@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { CannedResponsesApi } from './cannedResponses.ts';
 import type { GroupsApi } from './groups.ts';
+import type { KbApi } from './kb.ts';
 import type { NotificationsApi } from './notifications.ts';
 import type { ReportsApi } from './reports.ts';
 import type { SlaCalendarApi } from './slaCalendar.ts';
@@ -13,6 +14,7 @@ export interface Api {
   reports: ReportsApi;
   groups: GroupsApi;
   slaCalendar: SlaCalendarApi;
+  kb: KbApi;
 }
 
 export const ApiContext = createContext<Api | null>(null);
@@ -47,4 +49,8 @@ export function useGroupsApi(): GroupsApi {
 
 export function useSlaCalendarApi(): SlaCalendarApi {
   return useApi().slaCalendar;
+}
+
+export function useKbApi(): KbApi {
+  return useApi().kb;
 }

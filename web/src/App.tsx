@@ -7,6 +7,7 @@ import { ApiError, createApiClient } from './api/client.ts';
 import { groupsApi } from './api/groups.ts';
 import { notificationsApi } from './api/notifications.ts';
 import { reportsApi } from './api/reports.ts';
+import { kbApi } from './api/kb.ts';
 import { slaCalendarApi } from './api/slaCalendar.ts';
 import { ticketsApi } from './api/tickets.ts';
 import { useAuth } from './auth/AuthContext.tsx';
@@ -16,6 +17,9 @@ import { DashboardPage } from './pages/DashboardPage.tsx';
 import { GroupsPage } from './pages/GroupsPage.tsx';
 import { NewTicketPage } from './pages/NewTicketPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
+import { KbArticlePage } from './pages/KbArticlePage.tsx';
+import { KbEditPage } from './pages/KbEditPage.tsx';
+import { KbListPage } from './pages/KbListPage.tsx';
 import { SlaSettingsPage } from './pages/SlaSettingsPage.tsx';
 import { TicketDetailPage } from './pages/TicketDetailPage.tsx';
 import { TicketListPage } from './pages/TicketListPage.tsx';
@@ -33,6 +37,10 @@ export const routes: RouteObject[] = [
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'groups', element: <GroupsPage /> },
       { path: 'sla', element: <SlaSettingsPage /> },
+      { path: 'kb', element: <KbListPage /> },
+      { path: 'kb/new', element: <KbEditPage /> },
+      { path: 'kb/:id', element: <KbArticlePage /> },
+      { path: 'kb/:id/edit', element: <KbEditPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
@@ -62,6 +70,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       reports: reportsApi(client),
       groups: groupsApi(client),
       slaCalendar: slaCalendarApi(client),
+      kb: kbApi(client),
     };
   }, [getToken]);
   const [queryClient] = useState(createQueryClient);

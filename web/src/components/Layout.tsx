@@ -18,6 +18,7 @@ export function Layout() {
             Talepler
           </NavLink>
           <NavLink to="/tickets/new">Yeni talep</NavLink>
+          <NavLink to="/kb">Bilgi bankası</NavLink>
           {user.role === 'MANAGER' && <NavLink to="/dashboard">Panel</NavLink>}
           {user.role === 'MANAGER' && <NavLink to="/groups">Gruplar</NavLink>}
           {user.role === 'MANAGER' && <NavLink to="/sla">SLA</NavLink>}

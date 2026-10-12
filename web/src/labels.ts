@@ -1,4 +1,4 @@
-import type { CommentVisibility, TicketCategory, TicketPriority, TicketStatus } from './api/types.ts';
+import type { CommentVisibility, KbVisibility, TicketCategory, TicketPriority, TicketStatus } from './api/types.ts';
 
 export const STATUS_LABELS: Record<TicketStatus, string> = {
   NEW: 'Yeni',
@@ -28,6 +28,14 @@ export const CATEGORY_LABELS: Record<TicketCategory, string> = {
 };
 
 export const CATEGORY_ORDER: TicketCategory[] = ['HARDWARE', 'SOFTWARE', 'NETWORK', 'ACCESS', 'OTHER'];
+
+export const KB_VISIBILITY_LABELS: Record<KbVisibility, string> = {
+  PUBLIC: 'Herkese açık',
+  INTERNAL: 'Yalnızca ekip',
+  DRAFT: 'Taslak',
+};
+
+export const KB_VISIBILITY_ORDER: KbVisibility[] = ['PUBLIC', 'INTERNAL', 'DRAFT'];
 
 export const VISIBILITY_LABELS: Record<CommentVisibility, string> = {
   INTERNAL: 'Dahili (yalnızca ekip)',

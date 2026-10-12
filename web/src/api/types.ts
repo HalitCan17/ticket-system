@@ -78,6 +78,40 @@ export interface Ticket {
   canEdit: boolean;
 }
 
+export type KbVisibility = 'DRAFT' | 'INTERNAL' | 'PUBLIC';
+
+export interface KbArticleSummary {
+  id: number;
+  title: string;
+  excerpt: string;
+  category: TicketCategory;
+  visibility: KbVisibility;
+  updatedAt: string;
+}
+
+export interface KbArticle {
+  id: number;
+  title: string;
+  body: string;
+  category: TicketCategory;
+  visibility: KbVisibility;
+  createdBy: string;
+  createdAt: string;
+  updatedBy: string;
+  updatedAt: string;
+  helpfulYes: number;
+  helpfulNo: number;
+  /** The caller's own vote; null = none yet. */
+  myVote: boolean | null;
+}
+
+export interface KbArticleRequest {
+  title: string;
+  body: string;
+  category: TicketCategory;
+  visibility: KbVisibility;
+}
+
 export interface Page<T> {
   items: T[];
   page: number;

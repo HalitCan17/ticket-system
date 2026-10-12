@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import type { CannedResponse, CommentVisibility, CreateCommentRequest } from '../api/types.ts';
+import type {
+  CannedResponse,
+  CommentVisibility,
+  CreateCommentRequest,
+  KbArticleSummary,
+} from '../api/types.ts';
 import { fillPlaceholders, type PlaceholderValues } from '../placeholders.ts';
 import { VISIBILITY_LABELS } from '../labels.ts';
 import styles from './Comments.module.css';
@@ -12,9 +17,11 @@ interface Props {
   /** Staff only: reply templates offered above the text box. */
   templates?: CannedResponse[];
   placeholders?: PlaceholderValues;
+  /** Staff only: knowledge base articles that can be linked from the comment. */
+  articles?: KbArticleSummary[];
 }
 
-export function CommentForm({ staff, pending, onSubmit, templates = [], placeholders }: Props) {
+export function CommentForm({ staff, pending, onSubmit, templates = [], placeholders, articles = [] }: Props) {
   const [body, setBody] = useState('');
   // Safe default for staff: a note meant for the team must not reach the customer by accident.
   const [visibility, setVisibility] = useState<CommentVisibility>(staff ? 'INTERNAL' : 'EXTERNAL');
@@ -27,6 +34,19 @@ export function CommentForm({ staff, pending, onSubmit, templates = [], placehol
     setBody((current) => (current.trim() ? `${current.trimEnd()}\n\n${text}` : text));
     setVisibility(template.visibility);
   }
+
+  /** Adds the article title and its link; an internal-only article is not offered to the customer. */
+  function insertArticle(articleId: string) {
+    const article = articles.find((a) => String(a.id) === articleId);
+    if (!article) return;
+    const text = `${article.title}: ${window.location.origin}/kb/${article.id}`;
+    setBody((current) => (current.trim() ? `${current.trimEnd()}\n\n${text}` : text));
+  }
+
+  // Customers cannot open INTERNAL articles, so only public ones are offered on a customer-visible comment.
+  const linkable = articles.filter(
+    (a) => a.visibility !== 'DRAFT' && (a.visibility === 'PUBLIC' || visibility === 'INTERNAL'),
+  );
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -56,6 +76,26 @@ export function CommentForm({ staff, pending, onSubmit, templates = [], placehol
               <option key={t.id} value={t.id}>
                 {t.title}
                 {t.visibility === 'INTERNAL' ? ' (dahili)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {staff && linkable.length > 0 && (
+        <div className={styles.template}>
+          <label htmlFor="comment-article">Bilgi bankası makalesi</label>
+          <select
+            id="comment-article"
+            value=""
+            onChange={(e) => {
+              insertArticle(e.target.value);
+            }}
+          >
+            <option value="">Seçin…</option>
+            {linkable.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.title}
+                {a.visibility === 'INTERNAL' ? ' (dahili)' : ''}
               </option>
             ))}
           </select>

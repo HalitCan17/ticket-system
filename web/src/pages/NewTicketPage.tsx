@@ -5,6 +5,7 @@ import { useTicketsApi } from '../api/ApiContext.tsx';
 import { ApiError } from '../api/client.ts';
 import type { CreateTicketRequest, TicketCategory, TicketPriority } from '../api/types.ts';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
+import { KbSuggestions } from '../components/KbSuggestions.tsx';
 import { CATEGORY_LABELS, CATEGORY_ORDER, PRIORITY_LABELS, PRIORITY_ORDER } from '../labels.ts';
 import styles from './Form.module.css';
 
@@ -50,6 +51,7 @@ export function NewTicketPage() {
           />
           {fieldError('title') && <p className={styles.fieldError}>{fieldError('title')}</p>}
         </div>
+        <KbSuggestions title={form.title} />
         <div className={styles.field}>
           <label htmlFor="description">Açıklama</label>
           <textarea
