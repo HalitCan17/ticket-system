@@ -33,6 +33,8 @@ export function aTicket(overrides: Partial<Ticket> = {}): Ticket {
     closedAt: null,
     allowedTransitions: [],
     sla: anSla(),
+    firstResponse: null,
+    escalatedAt: null,
     autoCloseAt: null,
     rating: null,
     canRate: false,

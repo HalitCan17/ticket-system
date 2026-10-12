@@ -103,3 +103,8 @@
 .side > button {
   margin-top: var(--space-3);
 }
+
+.late {
+  color: var(--danger);
+  font-weight: 600;
+}

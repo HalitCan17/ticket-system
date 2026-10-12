@@ -1,4 +1,4 @@
-import type { Sla, TicketPriority, TicketStatus } from '../api/types.ts';
+import type { FirstResponse, Sla, TicketPriority, TicketStatus } from '../api/types.ts';
 import { formatDuration } from '../format.ts';
 import { PRIORITY_LABELS, STATUS_LABELS } from '../labels.ts';
 import styles from './Badge.module.css';
@@ -55,6 +55,29 @@ export function slaSummary(sla: Sla): { tone: Tone; text: string } {
   }
   const tone = sla.remainingSeconds < sla.targetSeconds * WARNING_SHARE ? 'warning' : 'info';
   return { tone, text: remaining };
+}
+
+/** Shown on tickets the breached resolution SLA escalated. */
+export function EscalatedBadge({ escalatedAt }: { escalatedAt: string | null }) {
+  if (!escalatedAt) return null;
+  return (
+    <Badge tone="danger" title="Çözüm SLA'sı aşıldığı için eskale edildi">
+      Eskale edildi
+    </Badge>
+  );
+}
+
+/** One line about the first response: time left, how late, or how fast it came. */
+export function firstResponseText(first: FirstResponse | null, createdAt: string): string {
+  if (!first) return '—';
+  if (first.respondedAt) {
+    const took = Math.max(0, (Date.parse(first.respondedAt) - Date.parse(createdAt)) / 1000);
+    return `${formatDuration(took)} içinde yanıtlandı${first.breached ? ' (geç)' : ''}`;
+  }
+  if (first.remainingSeconds === null) return 'Yanıt verilmeden kapandı';
+  return first.remainingSeconds >= 0
+    ? `${formatDuration(first.remainingSeconds)} kaldı`
+    : `${formatDuration(-first.remainingSeconds)} gecikti`;
 }
 
 export function SlaBadge({ sla }: { sla: Sla }) {

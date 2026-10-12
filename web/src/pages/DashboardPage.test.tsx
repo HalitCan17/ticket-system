@@ -18,6 +18,8 @@ function aSummary(overrides: Partial<ReportSummary> = {}): ReportSummary {
     resolution: { resolved: 8, withinSla: 6, withinSlaRate: 0.75, avgResolveSeconds: 5400 },
     satisfaction: { count: 4, average: 4.25, distribution: [0, 0, 1, 1, 2] },
     categories: { HARDWARE: 3, SOFTWARE: 5, NETWORK: 2, ACCESS: 1, OTHER: 1 },
+    firstResponse: { responded: 10, withinTarget: 9, withinTargetRate: 0.9 },
+    escalatedOpen: 2,
     ...overrides,
   };
 }
@@ -50,6 +52,8 @@ describe('DashboardPage', () => {
       '/tickets?assignee=unassigned&sort=sla',
     );
     expect(screen.getByRole('link', { name: "SLA'sı aşılmış: 1" })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Eskale edilmiş: 2' })).toHaveAttribute('href', '/tickets?escalated=1&sort=sla');
+    expect(screen.getByRole('group', { name: 'İlk yanıt uyumu: %90' })).toHaveTextContent('9 / 10 talep zamanında yanıtlandı');
     expect(screen.getByRole('group', { name: 'SLA uyumu: %75' })).toHaveTextContent('6 / 8 talep hedefinde çözüldü');
     expect(screen.getByRole('group', { name: 'Ortalama çözüm süresi: 1 sa 30 dk' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Memnuniyet: 4,3 / 5' })).toHaveTextContent('4 puan');

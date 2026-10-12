@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext.tsx';
 import { isStaff } from '../auth/roles.ts';
 import { AssignmentPanel } from '../components/AssignmentPanel.tsx';
 import { Attachments } from '../components/Attachments.tsx';
-import { PriorityBadge, SlaBadge, StatusBadge } from '../components/Badges.tsx';
+import { EscalatedBadge, firstResponseText, PriorityBadge, SlaBadge, StatusBadge } from '../components/Badges.tsx';
 import { CommentForm } from '../components/CommentForm.tsx';
 import { EditTicketPanel } from '../components/EditTicketPanel.tsx';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
@@ -118,6 +118,7 @@ export function TicketDetailPage() {
           <StatusBadge status={t.status} />
           <PriorityBadge priority={t.priority} />
           <SlaBadge sla={t.sla} />
+          <EscalatedBadge escalatedAt={t.escalatedAt} />
         </div>
       </header>
 
@@ -207,6 +208,10 @@ export function TicketDetailPage() {
             <dd>{userLabel(t.assigneeId, t.assigneeName, user.id)}</dd>
             <dt>Açılış</dt>
             <dd>{formatDateTime(t.createdAt)}</dd>
+            <dt>İlk yanıt</dt>
+            <dd className={t.firstResponse?.breached ? styles.late : undefined}>
+              {firstResponseText(t.firstResponse, t.createdAt)}
+            </dd>
             <dt>SLA hedefi</dt>
             <dd>{formatDuration(t.sla.targetSeconds)}</dd>
             <dt>Harcanan süre</dt>

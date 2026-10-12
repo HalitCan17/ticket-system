@@ -5,7 +5,7 @@ import { useTicketsApi } from '../api/ApiContext.tsx';
 import type { TicketCategory, TicketScope, TicketStatus } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { isStaff } from '../auth/roles.ts';
-import { PriorityBadge, SlaBadge, StatusBadge } from '../components/Badges.tsx';
+import { EscalatedBadge, PriorityBadge, SlaBadge, StatusBadge } from '../components/Badges.tsx';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
 import { formatDateTime, userLabel } from '../format.ts';
 import { CATEGORY_LABELS, CATEGORY_ORDER, STATUS_LABELS, STATUS_ORDER } from '../labels.ts';
@@ -33,11 +33,12 @@ function parseCategory(value: string | null): TicketCategory | undefined {
 type Queue = string;
 
 /** Work queue presets: a person filter (assignee) or a group filter, never both. */
-const QUEUES: { queue?: Queue; group?: string; label: string }[] = [
+const QUEUES: { queue?: Queue; group?: string; escalated?: boolean; label: string }[] = [
   { label: 'Herkesin' },
   { queue: 'me', label: 'Bana atananlar' },
   { queue: 'unassigned', label: 'Atanmamışlar' },
   { group: 'mine', label: 'Grubumun talepleri' },
+  { escalated: true, label: 'Eskale edilenler' },
 ];
 
 function parseQueue(value: string | null): Queue | undefined {
@@ -58,6 +59,8 @@ interface Filters {
   queue?: Queue;
   /** Staff only: 'mine' or a group id. */
   group?: string;
+  /** Staff only. */
+  escalated: boolean;
   sortBySla: boolean;
   page: number;
 }
@@ -74,6 +77,7 @@ export function TicketListPage() {
     status: parseStatus(searchParams.get('status')),
     queue: staff ? parseQueue(searchParams.get('assignee')) : undefined,
     group: staff ? parseQueue(searchParams.get('group')) : undefined,
+    escalated: staff && searchParams.get('escalated') === '1',
     sortBySla: staff && searchParams.get('sort') === 'sla',
     page: Math.max(0, Number(searchParams.get('page') ?? 0) || 0),
   };
@@ -89,6 +93,7 @@ export function TicketListPage() {
         status: filters.status,
         assignee: filters.queue,
         group: filters.group,
+        escalated: filters.escalated || undefined,
         sort: filters.sortBySla ? 'SLA' : undefined,
         page: filters.page,
         size: PAGE_SIZE,
@@ -105,6 +110,7 @@ export function TicketListPage() {
     if (merged.status) params.set('status', merged.status);
     if (merged.queue) params.set('assignee', merged.queue);
     if (merged.group) params.set('group', merged.group);
+    if (merged.escalated) params.set('escalated', '1');
     if (merged.sortBySla) params.set('sort', 'sla');
     if (merged.page) params.set('page', String(merged.page));
     setSearchParams(params);
@@ -122,7 +128,8 @@ export function TicketListPage() {
     filters.category !== undefined ||
     filters.status !== undefined ||
     filters.queue !== undefined ||
-    filters.group !== undefined;
+    filters.group !== undefined ||
+    filters.escalated;
 
   return (
     <section>
@@ -178,14 +185,15 @@ export function TicketListPage() {
           )}
           <div className={styles.segmented} role="group" aria-label="İş kuyruğu">
             {QUEUES.map((q) => {
-              const active = filters.queue === q.queue && filters.group === q.group;
+              const active =
+                filters.queue === q.queue && filters.group === q.group && filters.escalated === Boolean(q.escalated);
               return (
                 <button
                   key={q.label}
                   type="button"
                   aria-pressed={active}
                   className={active ? styles.segmentActive : styles.segment}
-                  onClick={() => update({ queue: q.queue, group: q.group })}
+                  onClick={() => update({ queue: q.queue, group: q.group, escalated: Boolean(q.escalated) })}
                 >
                   {q.label}
                 </button>
@@ -286,7 +294,7 @@ export function TicketListPage() {
                       <StatusBadge status={ticket.status} />
                     </td>
                     <td>
-                      <SlaBadge sla={ticket.sla} />
+                      <SlaBadge sla={ticket.sla} /> <EscalatedBadge escalatedAt={ticket.escalatedAt} />
                     </td>
                     <td>{userLabel(ticket.requesterId, ticket.requesterName, user.id)}</td>
                     <td>{userLabel(ticket.assigneeId, ticket.assigneeName, user.id)}</td>

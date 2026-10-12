@@ -28,6 +28,8 @@ export interface TicketListParams {
   assignee?: string;
   /** Staff: 'mine' (my groups) or a group id. */
   group?: string;
+  /** Staff: only tickets escalated because of a breached SLA. */
+  escalated?: boolean;
   /** Most urgent SLA first instead of newest first. */
   sort?: 'SLA';
   page?: number;
@@ -45,6 +47,7 @@ export function ticketsApi(client: ApiClient) {
       if (params.assignee) query.set('assignee', params.assignee);
       if (params.sort) query.set('sort', params.sort);
       if (params.group) query.set('group', params.group);
+      if (params.escalated) query.set('escalated', 'true');
       if (params.page !== undefined) query.set('page', String(params.page));
       if (params.size !== undefined) query.set('size', String(params.size));
       const suffix = query.size > 0 ? `?${query}` : '';

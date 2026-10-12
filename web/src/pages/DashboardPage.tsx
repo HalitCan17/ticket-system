@@ -78,6 +78,12 @@ function Dashboard() {
               tone={s.breachedOpen > 0 ? 'danger' : undefined}
               link="/tickets?sort=sla"
             />
+            <Tile
+              label="Eskale edilmiş"
+              value={String(s.escalatedOpen)}
+              tone={s.escalatedOpen > 0 ? 'danger' : undefined}
+              link="/tickets?escalated=1&sort=sla"
+            />
           </div>
 
           <h2 className={styles.sectionTitle}>Son {days} gün</h2>
@@ -91,6 +97,15 @@ function Dashboard() {
                 s.resolution.resolved === 0
                   ? 'Bu dönemde çözülen talep yok'
                   : `${s.resolution.withinSla} / ${s.resolution.resolved} talep hedefinde çözüldü`
+              }
+            />
+            <Tile
+              label="İlk yanıt uyumu"
+              value={s.firstResponse.withinTargetRate === null ? '—' : percent.format(s.firstResponse.withinTargetRate)}
+              hint={
+                s.firstResponse.responded === 0
+                  ? 'Bu dönemde ilk yanıt verilmedi'
+                  : `${s.firstResponse.withinTarget} / ${s.firstResponse.responded} talep zamanında yanıtlandı`
               }
             />
             <Tile

@@ -27,5 +27,9 @@ export function notificationText(n: AppNotification): string {
       return `${actor} talebi sizden aldı`;
     case 'PRIORITY_CHANGED':
       return `${actor} önceliği değiştirdi`;
+    case 'SLA_WARNING':
+      return "SLA süresinin %80'i doldu";
+    case 'FIRST_RESPONSE_BREACHED':
+      return 'İlk yanıt süresi aşıldı';
   }
 }

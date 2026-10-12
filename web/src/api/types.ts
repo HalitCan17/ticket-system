@@ -26,6 +26,15 @@ export interface Sla {
   breached: boolean;
 }
 
+/** First response SLA: the first customer-visible staff reaction (external comment or resolution). */
+export interface FirstResponse {
+  dueAt: string;
+  respondedAt: string | null;
+  breached: boolean;
+  /** While awaiting a response; negative once late. Null after the response or when closed. */
+  remainingSeconds: number | null;
+}
+
 export interface Rating {
   score: number;
   comment: string | null;
@@ -53,6 +62,9 @@ export interface Ticket {
   closedAt: string | null;
   allowedTransitions: TicketStatus[];
   sla: Sla;
+  firstResponse: FirstResponse | null;
+  /** Set when the breached resolution SLA escalated the ticket. */
+  escalatedAt: string | null;
   autoCloseAt: string | null;
   /** The requester's satisfaction rating; null until rated. */
   rating: Rating | null;
@@ -156,6 +168,8 @@ export interface ReportSummary {
   /** distribution[0] = number of 1-star ratings */
   satisfaction: { count: number; average: number | null; distribution: number[] };
   categories: Record<string, number>;
+  firstResponse: { responded: number; withinTarget: number; withinTargetRate: number | null };
+  escalatedOpen: number;
 }
 
 export interface TeamMember {
@@ -246,7 +260,9 @@ export type NotificationType =
   | 'TICKET_RATED'
   | 'TICKET_ASSIGNED'
   | 'TICKET_UNASSIGNED'
-  | 'PRIORITY_CHANGED';
+  | 'PRIORITY_CHANGED'
+  | 'SLA_WARNING'
+  | 'FIRST_RESPONSE_BREACHED';
 
 /** Mirrors backend NotificationResponse; the sentence is built in the UI from the type. */
 export interface AppNotification {

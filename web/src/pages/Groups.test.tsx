@@ -161,6 +161,7 @@ describe('groups on tickets', () => {
         days: 30, from: '', to: '', statusCounts: {}, openTickets: 0, unassignedOpen: 0, breachedOpen: 0, created: 0,
         resolution: { resolved: 0, withinSla: 0, withinSlaRate: null, avgResolveSeconds: null },
         satisfaction: { count: 0, average: null, distribution: [0, 0, 0, 0, 0] }, categories: {},
+        firstResponse: { responded: 0, withinTarget: 0, withinTargetRate: null }, escalatedOpen: 0,
       }),
       groups: vi.fn().mockResolvedValue([
         { id: 3, name: 'Ağ ekibi', members: 0, openWork: 4, unassignedOpen: 4, breachedOpen: 1 },
