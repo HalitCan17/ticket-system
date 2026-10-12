@@ -27,3 +27,7 @@ ticket'ını görür" kuralları zaten `tickets` tablosu üzerinden çalışmak 
 - (+) SLA (WAITING'de duraklama) statü geçmişinden hesaplanabilir.
 - (−) Akış görsel bir BPMN diyagramı olarak görünmüyor; dokümantasyon `TicketWorkflow` Javadoc'u ve bu ADR.
 - (−) jBPM şimdilik yalnızca spike sürecini çalıştırıyor; kullanılmazsa bağımlılık ileride yeniden değerlendirilmeli.
+
+## Ek (Aşama 10)
+Talep sahibi, henüz işleme alınmamış talebini geri çekebilir: `NEW → CLOSED`, yalnızca `REQUESTER`, not isteğe bağlı.
+Kural aynı tabloya eklendi; ayrıntılar [ADR 0010](0010-customer-features.md).

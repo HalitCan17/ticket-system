@@ -5,7 +5,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 9** — GitHub Actions CI, log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
+> Durum: **Aşama 10** — müşteri özellikleri (kategori, arama, geri çekme, memnuniyet puanı), GitHub Actions CI, log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -91,8 +91,10 @@ Ayrıntılar: [ADR 0009](docs/adr/0009-observability.md).
 
 ## Web arayüzü
 - Keycloak ile giriş (Authorization Code + PKCE); üst çubukta kullanıcı, rol ve çıkış.
-- **Talepler:** durum filtresi, sayfalama, öncelik/durum/SLA rozetleri, talep eden ve atanan kişinin adı.
-- **Yeni talep:** başlık, açıklama, öncelik; backend doğrulama hataları alanların altında.
+- **Talepler:** Açık / Kapanmış / Tümü sekmeleri, başlıkta ya da `#numara` ile arama, kategori ve durum filtreleri
+  (hepsi URL'de), sayfalama, öncelik/durum/SLA rozetleri, talep eden ve atanan kişinin adı.
+- **Yeni talep:** başlık, açıklama, kategori, öncelik; backend doğrulama hataları alanların altında.
+- **Müşteri:** henüz işleme alınmamış talebini geri çekebilir; çözülen talebe bir kez 1–5 yıldız ve yorum verir.
 - **Talep detayı:** yalnızca kullanıcının yapabileceği aksiyonlar (backend'in `allowedTransitions` alanı), çözüm notu ve
   itiraz gerekçesi zorunlu, çözüm ve otomatik kapanış bildirimi, SLA bilgileri, statü geçmişi, yorumlar
   (personel için dahili / müşteriye açık seçimi, dahili yorumlar müşteriye hiç gelmez).
@@ -123,6 +125,7 @@ Uygulama içi bildirimlerdir (e-posta yok), arayüz 30 saniyede bir kontrol eder
 | Müşteriye açık yorum | talep eden ve atanan |
 | Dahili yorum | yalnızca atanan (müşteriye asla) |
 | Ek yüklendi | yorumlardaki gibi (dahili ek yalnızca atanana) |
+| Memnuniyet puanı verildi | atanan |
 | Otomatik kapanış | talep eden |
 | SLA ihlali (ticket başına bir kez) | atanan ve tüm yöneticiler* |
 
@@ -134,9 +137,10 @@ API: `GET /api/notifications?unreadOnly=&page=&size=`, `GET /api/notifications/u
 ## Ticket akışı
 ```
 NEW ──► IN_PROGRESS ◄──► WAITING_FOR_CUSTOMER
-            │  ▲
-   (not ile)▼  │ (itiraz, gerekçe ile)
-          RESOLVED ──► CLOSED
+ │          │  ▲
+ │ (not ile)▼  │ (itiraz, gerekçe ile)
+ │        RESOLVED ──► CLOSED
+ └──────(geri çekme)────► CLOSED
 ```
 
 | Geçiş | Kim |
@@ -146,6 +150,7 @@ NEW ──► IN_PROGRESS ◄──► WAITING_FOR_CUSTOMER
 | IN_PROGRESS → RESOLVED (**çözüm notu zorunlu**) | AGENT, MANAGER |
 | RESOLVED → IN_PROGRESS (**itiraz gerekçesi zorunlu**) | ticket sahibi, MANAGER |
 | RESOLVED → CLOSED | ticket sahibi, MANAGER |
+| NEW → CLOSED (geri çekme, not isteğe bağlı) | yalnızca ticket sahibi |
 
 Müşteri yalnızca kendi ticket'larını görür (başkasınınki için 404). `INTERNAL` yorumlar yalnızca AGENT/MANAGER'a görünür.
 
@@ -205,10 +210,11 @@ curl -s -d client_id=itsm-cli -d grant_type=password -d username=customer1 -d pa
 
 | Metot | Yol | Açıklama |
 |---|---|---|
-| POST | `/api/tickets` | ticket aç: `{title, description, priority: LOW\|MEDIUM\|HIGH\|CRITICAL}` |
-| GET | `/api/tickets?status=&page=0&size=20` | sayfalı liste (`size` ≤ 100) |
+| POST | `/api/tickets` | ticket aç: `{title, description, priority: LOW\|MEDIUM\|HIGH\|CRITICAL, category: HARDWARE\|SOFTWARE\|NETWORK\|ACCESS\|OTHER}` |
+| GET | `/api/tickets?q=&scope=OPEN\|CLOSED\|ALL&category=&status=&page=0&size=20` | sayfalı liste (`q`: başlıkta ya da `#id`; `size` ≤ 100) |
 | GET | `/api/tickets/{id}` | detay (+ çağıranın yapabileceği `allowedTransitions`) |
 | POST | `/api/tickets/{id}/transitions` | `{targetStatus, note}` |
+| POST | `/api/tickets/{id}/rating` | talep sahibi, çözülmüş talebe bir kez: `{score: 1..5, comment}` |
 | GET | `/api/tickets/{id}/history` | statü geçmişi |
 | GET | `/api/tickets/{id}/comments` | yorumlar |
 | POST | `/api/tickets/{id}/comments` | `{body, visibility: INTERNAL\|EXTERNAL}` |
@@ -224,7 +230,7 @@ Hatalar [RFC 9457 ProblemDetail](https://www.rfc-editor.org/rfc/rfc9457) olarak 
 Örnek (`TOKEN` yukarıdaki cevaptaki `access_token`):
 
 ```bash
-curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"title":"VPN down","description":"Cannot connect","priority":"HIGH"}'
+curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"title":"VPN down","description":"Cannot connect","priority":"HIGH","category":"NETWORK"}'
 ```
 
 > Windows'ta Git Bash/PowerShell'den Türkçe karakterli body gönderirken komut satırı UTF-8 olmayabilir;
@@ -240,4 +246,5 @@ curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Co
 - [ADR 0007 — Uygulama içi bildirimler](docs/adr/0007-in-app-notifications.md)
 - [ADR 0008 — Ticket ekleri](docs/adr/0008-attachments.md)
 - [ADR 0009 — Loglama ve izleme](docs/adr/0009-observability.md)
+- [ADR 0010 — Müşteri özellikleri](docs/adr/0010-customer-features.md)
 - [jBPM spike raporu](docs/jbpm-spike.md)
