@@ -108,6 +108,75 @@ services:
       timeout: 5s
       retries: 10
 
+  # --- Observability (local development only; see docs/adr/0009-observability.md) ---
+  # backend (OpenTelemetry Java agent) --OTLP--> data-prepper --> opensearch <-- opensearch-dashboards
+
+  opensearch:
+    image: opensearchproject/opensearch:3.6.0
+    environment:
+      discovery.type: single-node
+      # No TLS / users: ports are bound to localhost only. Never expose this setup.
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "127.0.0.1:${OPENSEARCH_PORT:-9200}:9200"
+    volumes:
+      - osdata:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      start_period: 60s
+      retries: 15
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:3.6.0
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+    ports:
+      - "127.0.0.1:${DASHBOARDS_PORT:-5601}:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status || exit 1"]
+      interval: 10s
+      timeout: 10s
+      start_period: 90s
+      retries: 15
+
+  # One-shot: creates the otel-logs-* index pattern so logs are searchable in Discover; exits afterwards.
+  dashboards-init:
+    image: opensearchproject/opensearch:3.6.0
+    entrypoint:
+      - curl
+      - -fsS
+      - -X
+      - POST
+      - http://opensearch-dashboards:5601/api/saved_objects/index-pattern/otel-logs?overwrite=true
+      - -H
+      - "osd-xsrf: true"
+      - -H
+      - "Content-Type: application/json"
+      - -d
+      - '{"attributes":{"title":"otel-logs-*","timeFieldName":"time"}}'
+    restart: "no"
+    depends_on:
+      opensearch-dashboards:
+        condition: service_healthy
+
+  data-prepper:
+    image: opensearchproject/data-prepper:2.16.0
+    volumes:
+      - ./data-prepper/pipelines.yaml:/usr/share/data-prepper/pipelines/pipelines.yaml:ro
+      - ./data-prepper/data-prepper-config.yaml:/usr/share/data-prepper/config/data-prepper-config.yaml:ro
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
 volumes:
   pgdata:
   attachments:
+  osdata:

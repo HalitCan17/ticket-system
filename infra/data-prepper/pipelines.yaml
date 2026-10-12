@@ -1,0 +1,46 @@
+# OTLP from the backend's OpenTelemetry Java agent -> OpenSearch.
+# Traces use the index types OpenSearch Dashboards' Trace Analytics expects; logs go to otel-logs-<day>.
+# Local development only: plain HTTP, OpenSearch security plugin disabled (see docs/adr/0009-observability.md).
+
+entry-pipeline:
+  source:
+    otel_trace_source:
+      port: 21890
+      ssl: false
+  sink:
+    - pipeline:
+        name: raw-trace-pipeline
+    - pipeline:
+        name: service-map-pipeline
+
+raw-trace-pipeline:
+  source:
+    pipeline:
+      name: entry-pipeline
+  processor:
+    - otel_traces:
+  sink:
+    - opensearch:
+        hosts: ["http://opensearch:9200"]
+        index_type: trace-analytics-raw
+
+service-map-pipeline:
+  source:
+    pipeline:
+      name: entry-pipeline
+  processor:
+    - service_map:
+  sink:
+    - opensearch:
+        hosts: ["http://opensearch:9200"]
+        index_type: trace-analytics-service-map
+
+log-pipeline:
+  source:
+    otel_logs_source:
+      port: 21892
+      ssl: false
+  sink:
+    - opensearch:
+        hosts: ["http://opensearch:9200"]
+        index: "otel-logs-%{yyyy.MM.dd}"

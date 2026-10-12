@@ -1,0 +1,2 @@
+# Data Prepper's own server API (port 4900): plain HTTP inside the Compose network.
+ssl: false
