@@ -92,6 +92,24 @@ describe('SlaSettingsPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('7 açık talebin süreleri yeniden hesaplandı');
   });
 
+  it('keeps the saved message when the refreshed settings differ from what was loaded', async () => {
+    const before = aCalendar();
+    const after = aCalendar({ enabled: true });
+    const get = vi.fn().mockResolvedValueOnce(before).mockResolvedValue(after);
+    const save = vi.fn().mockResolvedValue({ calendar: after, recalculatedTickets: 0 });
+    renderApp('/sla', { role: 'MANAGER', slaCalendar: fakeSlaCalendarApi({ get, save }) });
+
+    const form = await screen.findByRole('form', { name: 'Mesai saatleri' });
+    await userEvent.click(within(form).getByRole('checkbox', { name: 'Mesai saatlerini kullan' }));
+    await userEvent.click(within(form).getByRole('button', { name: 'Kaydet' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Yeniden hesaplanacak açık talep yoktu.');
+    // The editor was rebuilt from the refreshed settings, and the message is still there.
+    await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole('checkbox', { name: 'Mesai saatlerini kullan' })).toBeChecked();
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
   it('refuses an empty week or an end before the start without calling the server', async () => {
     const save = vi.fn();
     const slaCalendar = fakeSlaCalendarApi({

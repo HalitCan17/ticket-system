@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSlaCalendarApi } from '../api/ApiContext.tsx';
 import { ApiError } from '../api/client.ts';
-import type { Holiday, SlaCalendar, WeekDay } from '../api/types.ts';
+import type { Holiday, SlaCalendar, SlaCalendarUpdate, WeekDay } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { ErrorMessage } from '../components/ErrorMessage.tsx';
 import { PRIORITY_LABELS, PRIORITY_ORDER } from '../labels.ts';
@@ -50,6 +50,8 @@ export function SlaSettingsPage() {
 function SlaSettings() {
   const api = useSlaCalendarApi();
   const calendar = useQuery({ queryKey: ['sla-calendar'], queryFn: () => api.get() });
+  // Kept here: saving refreshes the settings, which rebuilds the editor below and would drop the message.
+  const [saved, setSaved] = useState<SlaCalendarUpdate | null>(null);
 
   return (
     <section className={styles.page}>
@@ -60,12 +62,22 @@ function SlaSettings() {
       </p>
       {calendar.isPending && <p className={styles.muted}>Yükleniyor…</p>}
       {calendar.isError && <ErrorMessage error={calendar.error} />}
-      {calendar.data && <CalendarEditor key={JSON.stringify(calendar.data)} calendar={calendar.data} />}
+      {saved && (
+        <p className={styles.notice} role="status">
+          Kaydedildi.{' '}
+          {saved.recalculatedTickets > 0
+            ? `${saved.recalculatedTickets} açık talebin süreleri yeniden hesaplandı.`
+            : 'Yeniden hesaplanacak açık talep yoktu.'}
+        </p>
+      )}
+      {calendar.data && (
+        <CalendarEditor key={JSON.stringify(calendar.data)} calendar={calendar.data} onSaved={setSaved} />
+      )}
     </section>
   );
 }
 
-function CalendarEditor({ calendar }: { calendar: SlaCalendar }) {
+function CalendarEditor({ calendar, onSaved }: { calendar: SlaCalendar; onSaved: (result: SlaCalendarUpdate) => void }) {
   const api = useSlaCalendarApi();
   const queryClient = useQueryClient();
   const [enabled, setEnabled] = useState(calendar.enabled);
@@ -87,7 +99,10 @@ function CalendarEditor({ calendar }: { calendar: SlaCalendar }) {
         end,
         holidays,
       }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['sla-calendar'] }),
+    onSuccess: (result) => {
+      onSaved(result);
+      void queryClient.invalidateQueries({ queryKey: ['sla-calendar'] });
+    },
   });
 
   const hoursProblem =
@@ -200,14 +215,6 @@ function CalendarEditor({ calendar }: { calendar: SlaCalendar }) {
             {e.message}
           </p>
         ))}
-        {save.isSuccess && (
-          <p className={styles.notice} role="status">
-            Kaydedildi.{' '}
-            {save.data.recalculatedTickets > 0
-              ? `${save.data.recalculatedTickets} açık talebin süreleri yeniden hesaplandı.`
-              : 'Yeniden hesaplanacak açık talep yoktu.'}
-          </p>
-        )}
         <div className={styles.actions}>
           <button type="submit" disabled={save.isPending || (enabled && hoursProblem !== null)}>
             Kaydet
