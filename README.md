@@ -5,7 +5,7 @@
 IT Service Management (ticket) uygulaması: müşteriler talep açar, destek ekibi (agent/manager)
 SLA takibiyle çözer. Backend Spring Boot + PostgreSQL, iş akışları jBPM (Apache KIE) ile.
 
-> Durum: **Aşama 11** — personel iş kuyruğu, üstlenme/devretme/atama, öncelik ve kategori değiştirme; müşteri özellikleri (kategori, arama, geri çekme, memnuniyet puanı), GitHub Actions CI, log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
+> Durum: **Aşama 12** — hazır yanıtlar, personel iş kuyruğu, üstlenme/devretme/atama, öncelik ve kategori değiştirme; müşteri özellikleri (kategori, arama, geri çekme, memnuniyet puanı), GitHub Actions CI, log4j2 + OpenTelemetry + OpenSearch ile loglama ve izleme, Playwright uçtan uca testleri, ticket ekleri, uygulama içi bildirimler; web arayüzü (React + Keycloak girişi), ticket API'si, JWT kimlik doğrulama, SLA ve otomatik kapanış.
 
 ## Teknoloji
 | Katman | Teknoloji |
@@ -98,6 +98,8 @@ Ayrıntılar: [ADR 0009](docs/adr/0009-observability.md).
 - **Personel:** liste üstünde iş kuyruğu (Herkesin / Bana atananlar / Atanmamışlar) ve "SLA'sı en yakın" sıralaması.
   Agent atanmamış talebi üstlenir, kendi talebini devreder ya da bırakır; yönetici her talebi atar. Öncelik (gerekçeyle,
   SLA hedefi yeniden hesaplanır) ve kategori değiştirilebilir. Bu değişiklikler geçmişte yalnızca personele görünür.
+- **Hazır yanıtlar:** personel yorum yazarken şablon seçer; `{müşteri}`, `{talep}`, `{ben}` doldurulmuş olarak kutuya
+  eklenir (gönderilmez). Yönetici şablonları "Hazır yanıtlar" sayfasından ekler, düzenler, siler.
 - **Talep detayı:** yalnızca kullanıcının yapabileceği aksiyonlar (backend'in `allowedTransitions` alanı), çözüm notu ve
   itiraz gerekçesi zorunlu, çözüm ve otomatik kapanış bildirimi, SLA bilgileri, statü geçmişi, yorumlar
   (personel için dahili / müşteriye açık seçimi, dahili yorumlar müşteriye hiç gelmez).
@@ -223,6 +225,8 @@ curl -s -d client_id=itsm-cli -d grant_type=password -d username=customer1 -d pa
 | PATCH | `/api/tickets/{id}` | personel: `{priority, category, reason}` (öncelik değişince gerekçe zorunlu) |
 | GET | `/api/tickets/{id}/activities` | personel: atama/öncelik/kategori geçmişi |
 | GET | `/api/users/staff` | personel: atanabilir agent ve yöneticiler |
+| GET | `/api/canned-responses` | personel: hazır yanıtlar |
+| POST / PUT / DELETE | `/api/canned-responses[/{id}]` | yönetici: `{title, body, visibility}` (başlık benzersiz) |
 | POST | `/api/tickets/{id}/rating` | talep sahibi, çözülmüş talebe bir kez: `{score: 1..5, comment}` |
 | GET | `/api/tickets/{id}/history` | statü geçmişi |
 | GET | `/api/tickets/{id}/comments` | yorumlar |
@@ -257,4 +261,5 @@ curl -X POST localhost:8080/api/tickets -H "Authorization: Bearer $TOKEN" -H "Co
 - [ADR 0009 — Loglama ve izleme](docs/adr/0009-observability.md)
 - [ADR 0010 — Müşteri özellikleri](docs/adr/0010-customer-features.md)
 - [ADR 0011 — İş kuyruğu ve atama](docs/adr/0011-work-queue-and-assignment.md)
+- [ADR 0012 — Hazır yanıtlar](docs/adr/0012-canned-responses.md)
 - [jBPM spike raporu](docs/jbpm-spike.md)
