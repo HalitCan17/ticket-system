@@ -52,7 +52,7 @@ test('manager raises the priority with a reason; the customer does not see the s
   const manager = await as('manager1');
   await manager.goto(`/tickets/${id}`);
   await expect(facts(manager)).toContainText('1 g');
-  await manager.getByRole('button', { name: 'Önceliği / kategoriyi değiştir' }).click();
+  await manager.getByRole('button', { name: 'Önceliği / kategoriyi / grubu değiştir' }).click();
   const form = manager.getByRole('form', { name: 'Talebi düzenle' });
   await form.getByLabel('Öncelik').selectOption({ label: 'Kritik' });
   await form.getByLabel('Kategori').selectOption({ label: 'Ağ' });
@@ -71,5 +71,5 @@ test('manager raises the priority with a reason; the customer does not see the s
   await customer.reload();
   await expect(ticketHeader(customer)).toContainText('Kritik');
   await expect(customer.getByRole('complementary')).not.toContainText('Tüm ofis etkileniyor');
-  await expect(customer.getByRole('button', { name: 'Önceliği / kategoriyi değiştir' })).toHaveCount(0);
+  await expect(customer.getByRole('button', { name: 'Önceliği / kategoriyi / grubu değiştir' })).toHaveCount(0);
 });
