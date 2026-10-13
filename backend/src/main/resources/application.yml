@@ -44,3 +44,8 @@ management:
       show-details: never
       probes:
         enabled: true
+
+# The jBPM add-ons' tables come from our own migration (V14), not from their kie-flyway runner.
+kie:
+  flyway:
+    enabled: false
