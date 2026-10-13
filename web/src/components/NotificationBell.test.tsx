@@ -12,6 +12,8 @@ function aNotification(overrides: Partial<AppNotification> = {}): AppNotificatio
     type: 'STATUS_CHANGED',
     ticketId: 7,
     ticketTitle: 'Yazıcı',
+    serviceRequestId: null,
+    serviceRequestTitle: null,
     ticketStatus: 'IN_PROGRESS',
     actorId: 'agent-1',
     actorName: 'Agent One',

@@ -8,6 +8,7 @@ import type { CannedResponsesApi } from '../api/cannedResponses.ts';
 import type { GroupsApi } from '../api/groups.ts';
 import type { NotificationsApi } from '../api/notifications.ts';
 import type { ReportsApi } from '../api/reports.ts';
+import type { CatalogApi } from '../api/catalog.ts';
 import type { KbApi } from '../api/kb.ts';
 import type { SlaCalendarApi } from '../api/slaCalendar.ts';
 import type { TicketsApi } from '../api/tickets.ts';
@@ -101,6 +102,23 @@ export function fakeKbApi(overrides: Partial<KbApi> = {}): KbApi {
   };
 }
 
+/** A CatalogApi with no items and no requests; override what a test needs. */
+export function fakeCatalogApi(overrides: Partial<CatalogApi> = {}): CatalogApi {
+  return {
+    items: vi.fn().mockResolvedValue([]),
+    item: vi.fn(),
+    createItem: vi.fn(),
+    updateItem: vi.fn(),
+    requests: vi.fn().mockResolvedValue({ items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }),
+    request: vi.fn(),
+    create: vi.fn(),
+    cancel: vi.fn(),
+    decide: vi.fn(),
+    pendingCount: vi.fn().mockResolvedValue({ count: 0 }),
+    ...overrides,
+  };
+}
+
 /** Renders the real route tree with a fake signed-in user and API. */
 export function renderApp(
   path: string,
@@ -113,6 +131,7 @@ export function renderApp(
     groups?: GroupsApi;
     slaCalendar?: SlaCalendarApi;
     kb?: KbApi;
+    catalog?: CatalogApi;
   } = {},
 ) {
   const auth: Auth = {
@@ -127,18 +146,19 @@ export function renderApp(
   const groups = options.groups ?? fakeGroupsApi();
   const slaCalendar = options.slaCalendar ?? fakeSlaCalendarApi();
   const kb = options.kb ?? fakeKbApi();
+  const catalog = options.catalog ?? fakeCatalogApi();
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const queryClient = createQueryClient();
   queryClient.setDefaultOptions({ queries: { retry: false } });
 
   const result = render(
     <AuthContext.Provider value={auth}>
-      <ApiContext.Provider value={{ tickets: api, notifications, cannedResponses, reports, groups, slaCalendar, kb }}>
+      <ApiContext.Provider value={{ tickets: api, notifications, cannedResponses, reports, groups, slaCalendar, kb, catalog }}>
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
         </QueryClientProvider>
       </ApiContext.Provider>
     </AuthContext.Provider>,
   );
-  return { ...result, auth, api, notifications, cannedResponses, reports, groups, slaCalendar, kb, router };
+  return { ...result, auth, api, notifications, cannedResponses, reports, groups, slaCalendar, kb, catalog, router };
 }

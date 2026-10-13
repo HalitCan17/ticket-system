@@ -1,4 +1,8 @@
-import type { CommentVisibility, KbVisibility, TicketCategory, TicketPriority, TicketStatus } from './api/types.ts';
+import type {
+  CatalogFieldType,
+  CommentVisibility,
+  KbVisibility,
+  ServiceRequestStatus, TicketCategory, TicketPriority, TicketStatus } from './api/types.ts';
 
 export const STATUS_LABELS: Record<TicketStatus, string> = {
   NEW: 'Yeni',
@@ -36,6 +40,20 @@ export const KB_VISIBILITY_LABELS: Record<KbVisibility, string> = {
 };
 
 export const KB_VISIBILITY_ORDER: KbVisibility[] = ['PUBLIC', 'INTERNAL', 'DRAFT'];
+
+export const REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string> = {
+  PENDING_APPROVAL: 'Onay bekliyor',
+  FULFILLING: 'Karşılanıyor',
+  REJECTED: 'Reddedildi',
+  CANCELLED: 'Geri çekildi',
+};
+
+export const FIELD_TYPE_LABELS: Record<CatalogFieldType, string> = {
+  TEXT: 'Kısa metin',
+  TEXTAREA: 'Uzun metin',
+  NUMBER: 'Sayı',
+  SELECT: 'Seçim',
+};
 
 export const VISIBILITY_LABELS: Record<CommentVisibility, string> = {
   INTERNAL: 'Dahili (yalnızca ekip)',

@@ -7,6 +7,7 @@ import { ApiError, createApiClient } from './api/client.ts';
 import { groupsApi } from './api/groups.ts';
 import { notificationsApi } from './api/notifications.ts';
 import { reportsApi } from './api/reports.ts';
+import { catalogApi } from './api/catalog.ts';
 import { kbApi } from './api/kb.ts';
 import { slaCalendarApi } from './api/slaCalendar.ts';
 import { ticketsApi } from './api/tickets.ts';
@@ -17,7 +18,13 @@ import { DashboardPage } from './pages/DashboardPage.tsx';
 import { GroupsPage } from './pages/GroupsPage.tsx';
 import { NewTicketPage } from './pages/NewTicketPage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';
+import { ApprovalsPage } from './pages/ApprovalsPage.tsx';
+import { CatalogItemPage } from './pages/CatalogItemPage.tsx';
+import { CatalogManagePage } from './pages/CatalogManagePage.tsx';
+import { CatalogPage } from './pages/CatalogPage.tsx';
 import { KbArticlePage } from './pages/KbArticlePage.tsx';
+import { ServiceRequestPage } from './pages/ServiceRequestPage.tsx';
+import { ServiceRequestsPage } from './pages/ServiceRequestsPage.tsx';
 import { KbEditPage } from './pages/KbEditPage.tsx';
 import { KbListPage } from './pages/KbListPage.tsx';
 import { SlaSettingsPage } from './pages/SlaSettingsPage.tsx';
@@ -37,6 +44,12 @@ export const routes: RouteObject[] = [
       { path: 'dashboard', element: <DashboardPage /> },
       { path: 'groups', element: <GroupsPage /> },
       { path: 'sla', element: <SlaSettingsPage /> },
+      { path: 'catalog', element: <CatalogPage /> },
+      { path: 'catalog/manage', element: <CatalogManagePage /> },
+      { path: 'catalog/:id', element: <CatalogItemPage /> },
+      { path: 'requests', element: <ServiceRequestsPage /> },
+      { path: 'requests/:id', element: <ServiceRequestPage /> },
+      { path: 'approvals', element: <ApprovalsPage /> },
       { path: 'kb', element: <KbListPage /> },
       { path: 'kb/new', element: <KbEditPage /> },
       { path: 'kb/:id', element: <KbArticlePage /> },
@@ -71,6 +84,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       groups: groupsApi(client),
       slaCalendar: slaCalendarApi(client),
       kb: kbApi(client),
+      catalog: catalogApi(client),
     };
   }, [getToken]);
   const [queryClient] = useState(createQueryClient);

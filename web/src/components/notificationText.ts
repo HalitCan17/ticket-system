@@ -31,5 +31,11 @@ export function notificationText(n: AppNotification): string {
       return "SLA süresinin %80'i doldu";
     case 'FIRST_RESPONSE_BREACHED':
       return 'İlk yanıt süresi aşıldı';
+    case 'APPROVAL_REQUESTED':
+      return `${actor} onayınızı bekleyen bir hizmet talebi açtı`;
+    case 'REQUEST_APPROVED':
+      return `${actor} hizmet talebinizi onayladı`;
+    case 'REQUEST_REJECTED':
+      return `${actor} hizmet talebinizi reddetti`;
   }
 }

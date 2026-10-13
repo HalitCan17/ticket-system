@@ -112,6 +112,53 @@ export interface KbArticleRequest {
   visibility: KbVisibility;
 }
 
+export type CatalogFieldType = 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'SELECT';
+
+export interface CatalogField {
+  key: string;
+  label: string;
+  type: CatalogFieldType;
+  options: string[];
+  required: boolean;
+}
+
+export interface CatalogItem {
+  id: number;
+  name: string;
+  description: string;
+  category: TicketCategory;
+  priority: TicketPriority;
+  requiresApproval: boolean;
+  active: boolean;
+  fields: CatalogField[];
+  updatedAt: string;
+}
+
+export type CatalogItemRequest = Omit<CatalogItem, 'id' | 'updatedAt'>;
+
+export type ServiceRequestStatus = 'PENDING_APPROVAL' | 'FULFILLING' | 'REJECTED' | 'CANCELLED';
+
+export interface ServiceRequest {
+  id: number;
+  itemId: number;
+  itemName: string;
+  requiresApproval: boolean;
+  /** The item's form, to show answers with their labels. */
+  fields: CatalogField[];
+  answers: Record<string, string>;
+  status: ServiceRequestStatus;
+  requesterId: string;
+  requesterName: string | null;
+  approverId: string | null;
+  approverName: string | null;
+  decisionComment: string | null;
+  decidedAt: string | null;
+  ticketId: number | null;
+  createdAt: string;
+  canCancel: boolean;
+  canDecide: boolean;
+}
+
 export interface Page<T> {
   items: T[];
   page: number;
@@ -333,14 +380,21 @@ export type NotificationType =
   | 'TICKET_UNASSIGNED'
   | 'PRIORITY_CHANGED'
   | 'SLA_WARNING'
-  | 'FIRST_RESPONSE_BREACHED';
+  | 'FIRST_RESPONSE_BREACHED'
+  | 'APPROVAL_REQUESTED'
+  | 'REQUEST_APPROVED'
+  | 'REQUEST_REJECTED';
 
 /** Mirrors backend NotificationResponse; the sentence is built in the UI from the type. */
 export interface AppNotification {
   id: number;
   type: NotificationType;
-  ticketId: number;
+  /** Null for service request notifications, which carry serviceRequestId instead. */
+  ticketId: number | null;
   ticketTitle: string | null;
+  serviceRequestId: number | null;
+  /** The requested catalog item's name. */
+  serviceRequestTitle: string | null;
   /** The ticket's status right after a STATUS_CHANGED. */
   ticketStatus: TicketStatus | null;
   actorId: string | null;

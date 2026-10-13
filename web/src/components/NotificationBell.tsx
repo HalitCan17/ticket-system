@@ -56,7 +56,7 @@ export function NotificationBell() {
       markRead.mutate(n.id);
     }
     setOpen(false);
-    void navigate(`/tickets/${n.ticketId}`);
+    void navigate(n.serviceRequestId != null ? `/requests/${n.serviceRequestId}` : `/tickets/${n.ticketId}`);
   }
 
   const count = unread.data?.count ?? 0;
@@ -103,7 +103,9 @@ export function NotificationBell() {
                     onClick={() => openNotification(n)}
                   >
                     <span className={styles.title}>
-                      #{n.ticketId} {n.ticketTitle ?? ''}
+                      {n.serviceRequestId != null
+                        ? `Hizmet talebi #${n.serviceRequestId} ${n.serviceRequestTitle ?? ''}`
+                        : `#${n.ticketId} ${n.ticketTitle ?? ''}`}
                     </span>
                     <span>{notificationText(n)}</span>
                     <span className={styles.time}>{formatDateTime(n.createdAt)}</span>

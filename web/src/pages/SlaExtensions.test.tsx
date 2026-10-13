@@ -30,7 +30,7 @@ describe('first response text', () => {
 
   it('notification sentences for the new SLA events', () => {
     const n = (type: AppNotification['type']): AppNotification => ({
-      id: 1, type, ticketId: 7, ticketTitle: 'VPN', ticketStatus: null, actorId: null, actorName: null,
+      id: 1, type, ticketId: 7, ticketTitle: 'VPN', serviceRequestId: null, serviceRequestTitle: null, ticketStatus: null, actorId: null, actorName: null,
       createdAt: CREATED, read: false,
     });
     expect(notificationText(n('SLA_WARNING'))).toBe("SLA süresinin %80'i doldu");

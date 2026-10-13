@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { ROLE_LABELS } from '../auth/roles.ts';
+import { ApprovalsLink } from './ApprovalsLink.tsx';
 import { NotificationBell } from './NotificationBell.tsx';
 import styles from './Layout.module.css';
 
@@ -18,6 +19,11 @@ export function Layout() {
             Talepler
           </NavLink>
           <NavLink to="/tickets/new">Yeni talep</NavLink>
+          <NavLink to="/catalog" end>
+            Hizmet kataloğu
+          </NavLink>
+          <NavLink to="/requests">Hizmet taleplerim</NavLink>
+          {user.role === 'MANAGER' && <ApprovalsLink />}
           <NavLink to="/kb">Bilgi bankası</NavLink>
           {user.role === 'MANAGER' && <NavLink to="/dashboard">Panel</NavLink>}
           {user.role === 'MANAGER' && <NavLink to="/groups">Gruplar</NavLink>}
