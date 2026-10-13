@@ -24,5 +24,11 @@ public enum NotificationType {
     /** 80 % of the resolution SLA is used. */
     SLA_WARNING,
     /** Nobody from staff answered the customer within the first response target. */
-    FIRST_RESPONSE_BREACHED
+    FIRST_RESPONSE_BREACHED,
+    /** A service request waits for a manager's approval (see {@code serviceRequestId}). */
+    APPROVAL_REQUESTED,
+    /** The recipient's service request was approved and became a ticket. */
+    REQUEST_APPROVED,
+    /** The recipient's service request was rejected (reason on the request). */
+    REQUEST_REJECTED
 }

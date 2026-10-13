@@ -110,6 +110,17 @@ public final class NotificationRules {
         return owners(NotificationType.FIRST_RESPONSE_BREACHED, ticket, groupMemberIds, managerIds);
     }
 
+    /** Every manager may decide a waiting service request, except the one who asked for it. */
+    public static List<Recipient> forApprovalRequested(String requesterId, Collection<String> managerIds) {
+        return recipients(NotificationType.APPROVAL_REQUESTED, requesterId, managerIds.toArray(String[]::new));
+    }
+
+    /** The requester hears the decision on their service request. */
+    public static List<Recipient> forRequestDecided(String requesterId, boolean approved, String approverId) {
+        return recipients(approved ? NotificationType.REQUEST_APPROVED : NotificationType.REQUEST_REJECTED,
+                approverId, requesterId);
+    }
+
     /** The assignee; without one the members of the ticket's group; without those every manager. */
     private static List<Recipient> owners(NotificationType type, Ticket ticket, Collection<String> groupMemberIds,
             Collection<String> managerIds) {

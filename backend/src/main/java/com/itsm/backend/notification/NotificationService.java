@@ -10,6 +10,7 @@ import com.itsm.backend.common.error.NotFoundException;
 import com.itsm.backend.notification.NotificationRules.Recipient;
 import com.itsm.backend.group.GroupDirectory;
 import com.itsm.backend.security.CurrentUser;
+import com.itsm.backend.servicecatalog.ServiceRequestEvents;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.domain.TicketStatus;
 import com.itsm.backend.ticket.event.TicketCommentAddedEvent;
@@ -79,6 +80,18 @@ public class NotificationService {
         create(event.ticket(), NotificationRules.forPriorityChange(event.ticket(), event.actorId()), event.actorId(), null);
     }
 
+    @EventListener
+    public void onApprovalRequested(ServiceRequestEvents.ApprovalRequested event) {
+        createForRequest(event.requestId(), NotificationRules.forApprovalRequested(event.requesterId(),
+                userDirectory.managerIds()), event.requesterId());
+    }
+
+    @EventListener
+    public void onRequestDecided(ServiceRequestEvents.Decided event) {
+        createForRequest(event.requestId(), NotificationRules.forRequestDecided(event.requesterId(),
+                event.approved(), event.approverId()), event.approverId());
+    }
+
     /** Escalation: the assignee, the ticket's group and all known managers hear that the SLA was exceeded. */
     public void notifySlaBreach(Ticket ticket) {
         create(ticket, NotificationRules.forSlaBreach(ticket, groupMembers(ticket), userDirectory.managerIds()), null,
@@ -123,6 +136,13 @@ public class NotificationService {
     @Transactional
     public int markAllRead(CurrentUser user) {
         return notifications.markAllRead(user.id(), clock.instant());
+    }
+
+    private void createForRequest(long requestId, List<Recipient> recipients, String actorId) {
+        Instant now = clock.instant();
+        notifications.saveAll(recipients.stream()
+                .map(r -> Notification.aboutServiceRequest(r.userId(), r.type(), requestId, actorId, now))
+                .toList());
     }
 
     void create(Ticket ticket, List<Recipient> recipients, String actorId, TicketStatus status) {

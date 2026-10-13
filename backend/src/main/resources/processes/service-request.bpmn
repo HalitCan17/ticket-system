@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Service request (Aşama 17, docs/adr/0017-service-catalog.md).
+  Start, then "Needs approval?": yes leads to the Approve user task (group MANAGER), then "Approved?":
+  yes leads to Fulfil, no leads to Reject. Without approval the request goes straight to Fulfil.
+  Fulfil and Reject call com.itsm.backend.servicecatalog.ServiceRequestSteps; the request row holds everything else.
+-->
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:drools="http://www.jboss.org/drools"
+                   id="_serviceRequestDefinitions"
+                   exporter="hand-written"
+                   targetNamespace="http://www.omg.org/bpmn20">
+
+  <bpmn2:itemDefinition id="_requestIdItem" structureRef="java.lang.Long"/>
+  <bpmn2:itemDefinition id="_requiresApprovalItem" structureRef="java.lang.Boolean"/>
+  <bpmn2:itemDefinition id="_approvedItem" structureRef="java.lang.Boolean"/>
+  <bpmn2:itemDefinition id="_objectItem" structureRef="Object"/>
+
+  <bpmn2:interface id="_StepsInterface" name="com.itsm.backend.servicecatalog.ServiceRequestSteps"
+                   implementationRef="com.itsm.backend.servicecatalog.ServiceRequestSteps">
+    <bpmn2:operation id="_FulfilOperation" name="fulfil" implementationRef="fulfil"/>
+    <bpmn2:operation id="_RejectOperation" name="reject" implementationRef="reject"/>
+  </bpmn2:interface>
+
+  <bpmn2:process id="serviceRequest" name="Service request" isExecutable="true" processType="Public"
+                 drools:packageName="com.itsm.backend.servicecatalog.process" drools:version="1.0" drools:adHoc="false">
+
+    <bpmn2:property id="requestId" itemSubjectRef="_requestIdItem" name="requestId"/>
+    <bpmn2:property id="requiresApproval" itemSubjectRef="_requiresApprovalItem" name="requiresApproval"/>
+    <bpmn2:property id="approved" itemSubjectRef="_approvedItem" name="approved"/>
+
+    <bpmn2:startEvent id="_Start" name="Requested">
+      <bpmn2:outgoing>_Flow_StartToNeedsApproval</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:sequenceFlow id="_Flow_StartToNeedsApproval" sourceRef="_Start" targetRef="_NeedsApproval"/>
+
+    <bpmn2:exclusiveGateway id="_NeedsApproval" name="Needs approval?" gatewayDirection="Diverging">
+      <bpmn2:incoming>_Flow_StartToNeedsApproval</bpmn2:incoming>
+      <bpmn2:outgoing>_Flow_NeedsApprovalToApprove</bpmn2:outgoing>
+      <bpmn2:outgoing>_Flow_NeedsApprovalToMerge</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+    <bpmn2:sequenceFlow id="_Flow_NeedsApprovalToApprove" sourceRef="_NeedsApproval" targetRef="_Approve">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression" language="http://www.java.com/java">return Boolean.TRUE.equals(requiresApproval);</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="_Flow_NeedsApprovalToMerge" sourceRef="_NeedsApproval" targetRef="_ToFulfil">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression" language="http://www.java.com/java">return !Boolean.TRUE.equals(requiresApproval);</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+
+    <bpmn2:userTask id="_Approve" name="Approve">
+      <bpmn2:incoming>_Flow_NeedsApprovalToApprove</bpmn2:incoming>
+      <bpmn2:outgoing>_Flow_ApproveToApproved</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="_Approve_TaskNameInputX" drools:dtype="Object" itemSubjectRef="_objectItem" name="TaskName"/>
+        <bpmn2:dataInput id="_Approve_GroupIdInputX" drools:dtype="Object" itemSubjectRef="_objectItem" name="GroupId"/>
+        <bpmn2:dataInput id="_Approve_SkippableInputX" drools:dtype="Object" itemSubjectRef="_objectItem" name="Skippable"/>
+        <bpmn2:dataInput id="_Approve_requestIdInputX" drools:dtype="java.lang.Long" itemSubjectRef="_requestIdItem" name="requestId"/>
+        <bpmn2:dataOutput id="_Approve_approvedOutputX" drools:dtype="java.lang.Boolean" itemSubjectRef="_approvedItem" name="approved"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>_Approve_TaskNameInputX</bpmn2:dataInputRefs>
+          <bpmn2:dataInputRefs>_Approve_GroupIdInputX</bpmn2:dataInputRefs>
+          <bpmn2:dataInputRefs>_Approve_SkippableInputX</bpmn2:dataInputRefs>
+          <bpmn2:dataInputRefs>_Approve_requestIdInputX</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet>
+          <bpmn2:dataOutputRefs>_Approve_approvedOutputX</bpmn2:dataOutputRefs>
+        </bpmn2:outputSet>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:targetRef>_Approve_TaskNameInputX</bpmn2:targetRef>
+        <bpmn2:assignment>
+          <bpmn2:from xsi:type="bpmn2:tFormalExpression">Approve</bpmn2:from>
+          <bpmn2:to xsi:type="bpmn2:tFormalExpression">_Approve_TaskNameInputX</bpmn2:to>
+        </bpmn2:assignment>
+      </bpmn2:dataInputAssociation>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:targetRef>_Approve_GroupIdInputX</bpmn2:targetRef>
+        <bpmn2:assignment>
+          <bpmn2:from xsi:type="bpmn2:tFormalExpression">MANAGER</bpmn2:from>
+          <bpmn2:to xsi:type="bpmn2:tFormalExpression">_Approve_GroupIdInputX</bpmn2:to>
+        </bpmn2:assignment>
+      </bpmn2:dataInputAssociation>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:targetRef>_Approve_SkippableInputX</bpmn2:targetRef>
+        <bpmn2:assignment>
+          <bpmn2:from xsi:type="bpmn2:tFormalExpression">false</bpmn2:from>
+          <bpmn2:to xsi:type="bpmn2:tFormalExpression">_Approve_SkippableInputX</bpmn2:to>
+        </bpmn2:assignment>
+      </bpmn2:dataInputAssociation>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:sourceRef>requestId</bpmn2:sourceRef>
+        <bpmn2:targetRef>_Approve_requestIdInputX</bpmn2:targetRef>
+      </bpmn2:dataInputAssociation>
+      <bpmn2:dataOutputAssociation>
+        <bpmn2:sourceRef>_Approve_approvedOutputX</bpmn2:sourceRef>
+        <bpmn2:targetRef>approved</bpmn2:targetRef>
+      </bpmn2:dataOutputAssociation>
+    </bpmn2:userTask>
+    <bpmn2:sequenceFlow id="_Flow_ApproveToApproved" sourceRef="_Approve" targetRef="_Approved"/>
+
+    <bpmn2:exclusiveGateway id="_Approved" name="Approved?" gatewayDirection="Diverging">
+      <bpmn2:incoming>_Flow_ApproveToApproved</bpmn2:incoming>
+      <bpmn2:outgoing>_Flow_ApprovedToMerge</bpmn2:outgoing>
+      <bpmn2:outgoing>_Flow_ApprovedToReject</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+    <bpmn2:sequenceFlow id="_Flow_ApprovedToMerge" sourceRef="_Approved" targetRef="_ToFulfil">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression" language="http://www.java.com/java">return Boolean.TRUE.equals(approved);</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="_Flow_ApprovedToReject" sourceRef="_Approved" targetRef="_Reject">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression" language="http://www.java.com/java">return !Boolean.TRUE.equals(approved);</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+
+    <bpmn2:exclusiveGateway id="_ToFulfil" name="To fulfilment" gatewayDirection="Converging">
+      <bpmn2:incoming>_Flow_NeedsApprovalToMerge</bpmn2:incoming>
+      <bpmn2:incoming>_Flow_ApprovedToMerge</bpmn2:incoming>
+      <bpmn2:outgoing>_Flow_MergeToFulfil</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+    <bpmn2:sequenceFlow id="_Flow_MergeToFulfil" sourceRef="_ToFulfil" targetRef="_Fulfil"/>
+
+    <bpmn2:serviceTask id="_Fulfil" name="Fulfil" implementation="Java" operationRef="_FulfilOperation"
+                       drools:serviceimplementation="Java"
+                       drools:serviceinterface="com.itsm.backend.servicecatalog.ServiceRequestSteps"
+                       drools:serviceoperation="fulfil">
+      <bpmn2:incoming>_Flow_MergeToFulfil</bpmn2:incoming>
+      <bpmn2:outgoing>_Flow_FulfilToEnd</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="_Fulfil_ParameterInputX" drools:dtype="java.lang.Long" itemSubjectRef="_requestIdItem" name="Parameter"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>_Fulfil_ParameterInputX</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet/>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:sourceRef>requestId</bpmn2:sourceRef>
+        <bpmn2:targetRef>_Fulfil_ParameterInputX</bpmn2:targetRef>
+      </bpmn2:dataInputAssociation>
+    </bpmn2:serviceTask>
+    <bpmn2:sequenceFlow id="_Flow_FulfilToEnd" sourceRef="_Fulfil" targetRef="_Fulfilled"/>
+
+    <bpmn2:serviceTask id="_Reject" name="Reject" implementation="Java" operationRef="_RejectOperation"
+                       drools:serviceimplementation="Java"
+                       drools:serviceinterface="com.itsm.backend.servicecatalog.ServiceRequestSteps"
+                       drools:serviceoperation="reject">
+      <bpmn2:incoming>_Flow_ApprovedToReject</bpmn2:incoming>
+      <bpmn2:outgoing>_Flow_RejectToEnd</bpmn2:outgoing>
+      <bpmn2:ioSpecification>
+        <bpmn2:dataInput id="_Reject_ParameterInputX" drools:dtype="java.lang.Long" itemSubjectRef="_requestIdItem" name="Parameter"/>
+        <bpmn2:inputSet>
+          <bpmn2:dataInputRefs>_Reject_ParameterInputX</bpmn2:dataInputRefs>
+        </bpmn2:inputSet>
+        <bpmn2:outputSet/>
+      </bpmn2:ioSpecification>
+      <bpmn2:dataInputAssociation>
+        <bpmn2:sourceRef>requestId</bpmn2:sourceRef>
+        <bpmn2:targetRef>_Reject_ParameterInputX</bpmn2:targetRef>
+      </bpmn2:dataInputAssociation>
+    </bpmn2:serviceTask>
+    <bpmn2:sequenceFlow id="_Flow_RejectToEnd" sourceRef="_Reject" targetRef="_Rejected"/>
+
+    <bpmn2:endEvent id="_Fulfilled" name="Fulfilled">
+      <bpmn2:incoming>_Flow_FulfilToEnd</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:endEvent id="_Rejected" name="Rejected">
+      <bpmn2:incoming>_Flow_RejectToEnd</bpmn2:incoming>
+    </bpmn2:endEvent>
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram id="_serviceRequestDiagram">
+    <bpmndi:BPMNPlane id="_serviceRequestPlane" bpmnElement="serviceRequest">
+      <bpmndi:BPMNShape id="shape__Start" bpmnElement="_Start">
+        <dc:Bounds height="56" width="56" x="60" y="122"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape__NeedsApproval" bpmnElement="_NeedsApproval">
+        <dc:Bounds height="56" width="56" x="170" y="122"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape__Approve" bpmnElement="_Approve">
+        <dc:Bounds height="80" width="140" x="280" y="110"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape__Approved" bpmnElement="_Approved">
+        <dc:Bounds height="56" width="56" x="470" y="122"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape__ToFulfil" bpmnElement="_ToFulfil">
+        <dc:Bounds height="56" width="56" x="580" y="22"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape__Fulfil" bpmnElement="_Fulfil">
+        <dc:Bounds height="80" width="140" x="680" y="10"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape__Fulfilled" bpmnElement="_Fulfilled">
+        <dc:Bounds height="56" width="56" x="870" y="22"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape__Reject" bpmnElement="_Reject">
+        <dc:Bounds height="80" width="140" x="680" y="210"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape__Rejected" bpmnElement="_Rejected">
+        <dc:Bounds height="56" width="56" x="870" y="222"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="edge__Flow_StartToNeedsApproval" bpmnElement="_Flow_StartToNeedsApproval">
+        <di:waypoint x="116" y="150"/>
+        <di:waypoint x="170" y="150"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__Flow_NeedsApprovalToApprove" bpmnElement="_Flow_NeedsApprovalToApprove">
+        <di:waypoint x="226" y="150"/>
+        <di:waypoint x="280" y="150"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__Flow_NeedsApprovalToMerge" bpmnElement="_Flow_NeedsApprovalToMerge">
+        <di:waypoint x="198" y="122"/>
+        <di:waypoint x="198" y="50"/>
+        <di:waypoint x="580" y="50"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__Flow_ApproveToApproved" bpmnElement="_Flow_ApproveToApproved">
+        <di:waypoint x="420" y="150"/>
+        <di:waypoint x="470" y="150"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__Flow_ApprovedToMerge" bpmnElement="_Flow_ApprovedToMerge">
+        <di:waypoint x="498" y="122"/>
+        <di:waypoint x="608" y="78"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__Flow_ApprovedToReject" bpmnElement="_Flow_ApprovedToReject">
+        <di:waypoint x="498" y="178"/>
+        <di:waypoint x="498" y="250"/>
+        <di:waypoint x="680" y="250"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__Flow_MergeToFulfil" bpmnElement="_Flow_MergeToFulfil">
+        <di:waypoint x="636" y="50"/>
+        <di:waypoint x="680" y="50"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__Flow_FulfilToEnd" bpmnElement="_Flow_FulfilToEnd">
+        <di:waypoint x="820" y="50"/>
+        <di:waypoint x="870" y="50"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge__Flow_RejectToEnd" bpmnElement="_Flow_RejectToEnd">
+        <di:waypoint x="820" y="250"/>
+        <di:waypoint x="870" y="250"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

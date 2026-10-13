@@ -2,11 +2,13 @@ package com.itsm.backend.notification;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.itsm.backend.common.web.PageResponse;
 import com.itsm.backend.security.CurrentUser;
+import com.itsm.backend.servicecatalog.ServiceRequestTitles;
 import com.itsm.backend.ticket.domain.Ticket;
 import com.itsm.backend.ticket.repository.TicketRepository;
 import com.itsm.backend.user.UserDirectory;
@@ -33,12 +35,14 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final TicketRepository tickets;
     private final UserDirectory userDirectory;
+    private final ServiceRequestTitles requestTitles;
 
     public NotificationController(NotificationService notificationService, TicketRepository tickets,
-            UserDirectory userDirectory) {
+            UserDirectory userDirectory, ServiceRequestTitles requestTitles) {
         this.notificationService = notificationService;
         this.tickets = tickets;
         this.userDirectory = userDirectory;
+        this.requestTitles = requestTitles;
     }
 
     @GetMapping
@@ -50,10 +54,13 @@ public class NotificationController {
         Page<Notification> result = notificationService.list(user, unreadOnly, PageRequest.of(page, size, NEWEST_FIRST));
         List<Notification> items = result.getContent();
         // One query each for ticket titles and actor names of the whole page.
-        Map<Long, String> titles = tickets.findAllById(items.stream().map(Notification::getTicketId).distinct().toList())
+        Map<Long, String> titles = tickets.findAllById(
+                items.stream().map(Notification::getTicketId).filter(Objects::nonNull).distinct().toList())
                 .stream().collect(Collectors.toMap(Ticket::getId, Ticket::getTitle));
+        Map<Long, String> requests = requestTitles.titles(
+                items.stream().map(Notification::getServiceRequestId).filter(Objects::nonNull).distinct().toList());
         Map<String, String> names = userDirectory.displayNames(items.stream().map(Notification::getActorId).toList());
-        return PageResponse.of(result, toResponse(titles, names));
+        return PageResponse.of(result, toResponse(titles, requests, names));
     }
 
     @GetMapping("/unread-count")
@@ -73,12 +80,14 @@ public class NotificationController {
     }
 
     private static Function<Notification, NotificationResponse> toResponse(Map<Long, String> titles,
-            Map<String, String> names) {
+            Map<Long, String> requests, Map<String, String> names) {
         return n -> new NotificationResponse(
                 n.getId(),
                 n.getType(),
                 n.getTicketId(),
-                titles.get(n.getTicketId()),
+                n.getTicketId() == null ? null : titles.get(n.getTicketId()),
+                n.getServiceRequestId(),
+                n.getServiceRequestId() == null ? null : requests.get(n.getServiceRequestId()),
                 n.getTicketStatus(),
                 n.getActorId(),
                 n.getActorId() == null ? null : names.get(n.getActorId()),

@@ -27,8 +27,12 @@ public class Notification {
     @Column(nullable = false, length = 40)
     private NotificationType type;
 
-    @Column(name = "ticket_id", nullable = false)
+    /** Exactly one of ticketId and serviceRequestId is set. */
+    @Column(name = "ticket_id")
     private Long ticketId;
+
+    @Column(name = "service_request_id")
+    private Long serviceRequestId;
 
     @Column(name = "actor_id", length = 64)
     private String actorId;
@@ -56,6 +60,14 @@ public class Notification {
         this.createdAt = createdAt;
     }
 
+    /** A notification about a service request (approval asked, approved, rejected). */
+    public static Notification aboutServiceRequest(String recipientId, NotificationType type, long serviceRequestId,
+            String actorId, Instant createdAt) {
+        Notification n = new Notification(recipientId, type, null, actorId, null, createdAt);
+        n.serviceRequestId = serviceRequestId;
+        return n;
+    }
+
     public void markRead(Instant now) {
         if (readAt == null) {
             readAt = now;
@@ -80,6 +92,10 @@ public class Notification {
 
     public Long getTicketId() {
         return ticketId;
+    }
+
+    public Long getServiceRequestId() {
+        return serviceRequestId;
     }
 
     public String getActorId() {

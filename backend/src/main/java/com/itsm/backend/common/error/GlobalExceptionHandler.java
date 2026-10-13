@@ -33,7 +33,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     ProblemDetail handleApiException(ApiException ex) {
-        return problem(ex.getStatus(), ex.getCode(), ex.getMessage());
+        ProblemDetail body = problem(ex.getStatus(), ex.getCode(), ex.getMessage());
+        if (ex instanceof InvalidFieldsException invalid) {
+            body.setProperty(ERRORS, invalid.getErrors().stream()
+                    .map(e -> Map.of("field", e.field(), "message", e.message()))
+                    .toList());
+        }
+        return body;
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
