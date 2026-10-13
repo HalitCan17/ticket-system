@@ -1,5 +1,8 @@
 # jBPM (Apache KIE 10.2.0) spike — Aşama 0
 
+> **Aşama 17 notu:** spike süreci ve testi kaldırıldı; jBPM artık servis kataloğu onay akışında, Postgres'te kalıcı
+> olarak kullanılıyor. Güncel karar ve kurulum: [ADR 0017](adr/0017-service-catalog.md).
+
 ## Sonuç: ÇALIŞTI ✅
 
 Apache KIE 10.2.0 jBPM, Spring Boot 3.5.16 / Java 21 backend'ine **gömülü** olarak eklendi.
